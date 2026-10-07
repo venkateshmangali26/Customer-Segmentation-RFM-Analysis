@@ -1,0 +1,43 @@
+import { NextResponse } from "next/server";
+import { runRfmAnalysis, summarizeBySegment } from "@/lib/rfm";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  try {
+    const result = await runRfmAnalysis();
+    const segmentSummary = summarizeBySegment(result.customers);
+    const totalRevenue = result.customers.reduce((s, c) => s + c.monetary, 0);
+    const totalTx = result.customers.reduce((s, c) => s + c.frequency, 0);
+    const avgOrderValue = totalTx > 0 ? totalRevenue / totalTx : 0;
+
+    // Per-axis distribution for charts
+    const scoreDistribution = {
+      r: [0, 0, 0, 0, 0],
+      f: [0, 0, 0, 0, 0],
+      m: [0, 0, 0, 0, 0],
+    };
+    for (const c of result.customers) {
+      scoreDistribution.r[c.recencyScore - 1] += 1;
+      scoreDistribution.f[c.frequencyScore - 1] += 1;
+      scoreDistribution.m[c.monetaryScore - 1] += 1;
+    }
+
+    return NextResponse.json({
+      referenceDate: result.referenceDate,
+      totalCustomers: result.totalCustomers,
+      totalRevenue: Number(totalRevenue.toFixed(2)),
+      avgOrderValue: Number(avgOrderValue.toFixed(2)),
+      totalTransactions: totalTx,
+      segmentSummary,
+      scoreDistribution,
+      customers: result.customers,
+    });
+  } catch (err) {
+    console.error("[rfm/analyze] error:", err);
+    return NextResponse.json(
+      { error: "Failed to run RFM analysis", detail: String(err) },
+      { status: 500 }
+    );
+  }
+}
