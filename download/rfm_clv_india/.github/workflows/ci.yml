@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        # Prophet can fail on some platforms; the fallback below installs the
+        # rest of the stack without Prophet, which still passes all tests
+        # (the forecasting module gracefully falls back to statsmodels).
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || (
+            echo "::warning::Prophet install failed — installing fallback stack"
+            pip install pandas numpy scipy scikit-learn matplotlib seaborn plotly streamlit tabulate statsmodels pytest pytest-cov
+          )
+
+      - name: Lint (basic syntax check)
+        run: |
+          python -m py_compile src/*.py
+          python -m py_compile app.py run_pipeline.py
+
+      - name: Run pytest suite
+        run: pytest tests/ -v --tb=short
+
+      - name: Smoke-test the pipeline
+        # Generate a tiny dataset and verify the full pipeline runs end-to-end
+        env:
+          PYTHONPATH: .
+        run: |
+          python -c "
+          from src.data_generator import generate_synthetic_transactions
+          from src.data_processing import clean_transactions
+          from src.rfm_analysis import run_rfm_pipeline
+          from src.clustering import run_clustering_pipeline
+          from src.clv_modeling import compute_predictive_clv
+          from src.cohort_analysis import run_cohort_analysis
+          from src.sales_forecasting import forecast_sales
+
+          raw = generate_synthetic_transactions(n_transactions=5000, n_customers=200, output_path=None)
+          cleaned, _ = clean_transactions(raw, output_path=None)
+          rfm, _ = run_rfm_pipeline(cleaned, output_path=None)
+          clustered, profiles, eval_df, _, _ = run_clustering_pipeline(rfm, output_path=None)
+          enriched, clv_stats = compute_predictive_clv(cleaned, clustered, output_path=None)
+          cohort_sizes, ret_matrix, rate_matrix, summary = run_cohort_analysis(cleaned, output_dir=None)
+          history, forecast, fc_stats = forecast_sales(cleaned, output_dir=None)
+          print(f'Smoke test passed: {len(enriched)} customers, {len(forecast)} forecast points')
+          "

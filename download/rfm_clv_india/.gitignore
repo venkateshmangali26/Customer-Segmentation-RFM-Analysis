@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+.env.local
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Next.js / build artifacts
+.next/
+out/
+build/
+dist/
+
+# Data files (don't commit large CSVs)
+data/raw/*.csv
+data/processed/*.csv
+reports/*.csv
+reports/*.md
+reports/figures/*.png
+!data/raw/.gitkeep
+!reports/.gitkeep
+
+# Misc
+.DS_Store
+*.pem
+*.log
+dev.log
+server.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.zscripts/
+agent-ctx/
+
+# Streamlit
+.streamlit/secrets.toml
