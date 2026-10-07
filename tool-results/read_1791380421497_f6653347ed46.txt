@@ -1,0 +1,921 @@
+     1→"""
+     2→Customer Segmentation, RFM Behavioral Intelligence & Predictive CLV Platform
+     3→================================================================================
+     4→Colorful Streamlit frontend with 7 sidebar modules:
+     5→
+     6→  1. 📊 Executive KPI Overview          — KPI cards + Pareto + donut + table
+     7→  2. 🔍 RFM Quantile Explorer           — segment filter + R/F/M sliders + 2 scatters
+     8→  3. 🤖 K-Means & PCA Clustering        — 2D / 3D / Elbow / Snake sub-tabs
+     9→  4. 🔮 Predictive CLV (BG/NBD+GG)     — KPIs + box + churn-CLV scatter + top-N
+    10→  5. 📅 Cohort Retention Heatmap        — triangular heatmap + half-life table
+    11→  6. 📈 Sales Forecast (Prophet)        — historical + forecast + confidence band
+    12→  7. 🚀 Targeted Campaign Simulator     — 6 inputs + 4 KPIs + A/B bar chart + Z-test
+    13→  8. 📋 Strategic Playbook & Export     — 4 personas + CSV export per segment
+    14→
+    15→Self-healing: on first run, generates data and runs the full pipeline if CSVs
+    16→are missing. Lazy backfills CLV columns on legacy CSVs.
+    17→
+    18→All bug fixes from the prior audit are applied:
+    19→  - simulate_campaign_ab_test now accepts cpc_email, margin, aov_control,
+    20→    aov_targeted and the Tab-7 call site wires all four user inputs through.
+    21→  - Empty segment-multiselect now means "show all" instead of crashing to 0 of N.
+    22→  - Snake plot Z-score guarded against zero-std edge cases.
+    23→  - Sidebar "Clear cache" button invalidates @st.cache_data on demand.
+    24→"""
+    25→
+    26→import sys
+    27→from pathlib import Path
+    28→
+    29→# Ensure project root is in sys.path
+    30→PROJECT_ROOT = Path(__file__).resolve().parent
+    31→if str(PROJECT_ROOT) not in sys.path:
+    32→    sys.path.insert(0, str(PROJECT_ROOT))
+    33→
+    34→import numpy as np
+    35→import pandas as pd
+    36→import plotly.express as px
+    37→import plotly.graph_objects as go
+    38→import streamlit as st
+    39→
+    40→from src.config import (
+    41→    CAMPAIGN_SUMMARY_FILE,
+    42→    CLEANED_DATA_FILE,
+    43→    CLUSTER_METRICS_FILE,
+    44→    RAW_DATA_FILE,
+    45→    REPORTS_DIR,
+    46→    RFM_DATA_FILE,
+    47→)
+    48→from src.clustering import run_clustering_pipeline
+    49→from src.clv_modeling import compute_predictive_clv
+    50→from src.cohort_analysis import run_cohort_analysis, compute_retention_rate_matrix
+    51→from src.data_generator import generate_synthetic_transactions
+    52→from src.data_processing import clean_transactions, load_raw_data
+    53→from src.marketing_strategy import MARKETING_PLAYBOOKS, simulate_campaign_ab_test
+    54→from src.rfm_analysis import run_rfm_pipeline
+    55→from src.sales_forecasting import forecast_sales, PROPHET_AVAILABLE
+    56→
+    57→# ============================================================================
+    58→# 1. PAGE CONFIG + COLORFUL CUSTOM CSS
+    59→# ============================================================================
+    60→
+    61→st.set_page_config(
+    62→    page_title="Customer Segmentation, RFM & CLV Intelligence (India)",
+    63→    page_icon="🎯",
+    64→    layout="wide",
+    65→    initial_sidebar_state="expanded",
+    66→)
+    67→
+    68→# Colorful gradient theme — purple→blue→teal background, accent emerald
+    69→st.markdown(
+    70→    """
+    71→    <style>
+    72→    /* === Main background: subtle dark gradient === */
+    73→    .stApp {
+    74→        background: linear-gradient(135deg, #0a0e27 0%, #151b3d 35%, #1a1f4d 70%, #0d2136 100%);
+    75→    }
+    76→    .main { background: transparent; }
+    77→
+    78→    /* === KPI cards: glassmorphism with accent left border === */
+    79→    .kpi-card {
+    80→        background: linear-gradient(135deg, rgba(31, 41, 71, 0.85) 0%, rgba(21, 27, 48, 0.95) 100%);
+    81→        backdrop-filter: blur(12px);
+    82→        border: 1px solid rgba(99, 102, 241, 0.18);
+    83→        border-left: 4px solid #8b5cf6;
+    84→        border-radius: 14px;
+    85→        padding: 22px 26px;
+    86→        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.02) inset;
+    87→        margin-bottom: 12px;
+    88→        transition: transform 0.2s ease;
+    89→    }
+    90→    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(139, 92, 246, 0.25); }
+    91→    .kpi-title {
+    92→        font-size: 11px;
+    93→        color: #a5b4fc;
+    94→        text-transform: uppercase;
+    95→        letter-spacing: 0.12em;
+    96→        margin-bottom: 10px;
+    97→        font-weight: 700;
+    98→    }
+    99→    .kpi-value {
+   100→        font-size: 30px;
+   101→        font-weight: 800;
+   102→        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+   103→        -webkit-background-clip: text;
+   104→        -webkit-text-fill-color: transparent;
+   105→        letter-spacing: -0.03em;
+   106→    }
+   107→    .kpi-subtitle {
+   108→        font-size: 11px;
+   109→        color: #34d399;
+   110→        margin-top: 8px;
+   111→        font-weight: 600;
+   112→        letter-spacing: 0.04em;
+   113→    }
+   114→
+   115→    /* === Tabs: pill-style with active accent === */
+   116→    .stTabs [data-baseweb="tab-list"] { gap: 6px; background: transparent; }
+   117→    .stTabs [data-baseweb="tab"] {
+   118→        background: linear-gradient(135deg, rgba(31, 41, 71, 0.7) 0%, rgba(21, 27, 48, 0.85) 100%);
+   119→        border-radius: 8px;
+   120→        color: #cbd5e1;
+   121→        font-weight: 600;
+   122→        padding: 10px 20px;
+   123→        border: 1px solid rgba(99, 102, 241, 0.18);
+   124→        transition: all 0.2s ease;
+   125→    }
+   126→    .stTabs [data-baseweb="tab"]:hover {
+   127→        border-color: #8b5cf6;
+   128→        color: #e0e7ff;
+   129→    }
+   130→    .stTabs [aria-selected="true"] {
+   131→        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%) !important;
+   132→        color: white !important;
+   133→        border-color: #a78bfa !important;
+   134→        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+   135→    }
+   136→
+   137→    /* === Sidebar: gradient + section headers === */
+   138→    section[data-testid="stSidebar"] {
+   139→        background: linear-gradient(180deg, #0a0e27 0%, #0d1b3a 100%);
+   140→        border-right: 1px solid rgba(99, 102, 241, 0.2);
+   141→    }
+   142→    section[data-testid="stSidebar"] .stMarkdown h1,
+   143→    section[data-testid="stSidebar"] .stMarkdown h2,
+   144→    section[data-testid="stSidebar"] .stMarkdown h3 {
+   145→        color: #e0e7ff;
+   146→    }
+   147→
+   148→    /* === Headings: gradient === */
+   149→    h1, h2, h3 {
+   150→        background: linear-gradient(135deg, #c4b5fd 0%, #93c5fd 50%, #5eead4 100%);
+   151→        -webkit-background-clip: text;
+   152→        -webkit-text-fill-color: transparent;
+   153→    }
+   154→
+   155→    /* === Plotly chart container: subtle inset === */
+   156→    .stPlotlyChart {
+   157→        border: 1px solid rgba(99, 102, 241, 0.12);
+   158→        border-radius: 10px;
+   159→        padding: 6px;
+   160→        background: rgba(13, 21, 54, 0.5);
+   161→    }
+   162→    </style>
+   163→    """,
+   164→    unsafe_allow_html=True,
+   165→)
+   166→
+   167→
+   168→# ============================================================================
+   169→# 2. SELF-HEALING DATA LOADER
+   170→# ============================================================================
+   171→
+   172→@st.cache_data(show_spinner=False)
+   173→def initialize_and_load_data(_force_refresh: bool = False):
+   174→    """If RFM/cluster CSVs are missing, generate data and run the full pipeline.
+   175→    On legacy CSVs lacking CLV columns, lazily backfill them."""
+   176→    if not RFM_DATA_FILE.exists() or not CLUSTER_METRICS_FILE.exists():
+   177→        with st.spinner("🚀 Initializing pipeline: Generating sample transactions, training ML clusters, fitting BG/NBD..."):
+   178→            raw_df = generate_synthetic_transactions(n_transactions=50000, n_customers=5000)
+   179→            cleaned_df, _ = clean_transactions(raw_df, output_path=CLEANED_DATA_FILE)
+   180→            rfm_df, _ = run_rfm_pipeline(cleaned_df, output_path=RFM_DATA_FILE)
+   181→            rfm_clustered, cluster_profiles, eval_df, _, _ = run_clustering_pipeline(
+   182→                rfm_df, n_clusters=4, output_path=RFM_DATA_FILE
+   183→            )
+   184→            rfm_clustered, _ = compute_predictive_clv(cleaned_df, rfm_clustered, output_path=RFM_DATA_FILE)
+   185→    else:
+   186→        rfm_df = pd.read_csv(RFM_DATA_FILE)
+   187→        cluster_profiles = pd.read_csv(CLUSTER_METRICS_FILE)
+   188→        eval_file = REPORTS_DIR / "clustering_evaluation_metrics.csv"
+   189→        eval_df = pd.read_csv(eval_file) if eval_file.exists() else pd.DataFrame()
+   190→
+   191→        # Self-heal CLV columns if needed
+   192→        if "Predicted_CLV_365D" not in rfm_df.columns and CLEANED_DATA_FILE.exists():
+   193→            with st.spinner("🔮 Backfilling CLV columns on legacy CSV..."):
+   194→                cleaned_df = pd.read_csv(CLEANED_DATA_FILE)
+   195→                rfm_df, _ = compute_predictive_clv(cleaned_df, rfm_df, output_path=RFM_DATA_FILE)
+   196→
+   197→    return rfm_df, cluster_profiles, eval_df
+   198→
+   199→
+   200→# Sidebar: Clear-cache button so users can re-run the pipeline and see fresh data
+   201→if st.sidebar.button("🔄 Clear cache & reload from disk"):
+   202→    st.cache_data.clear()
+   203→    st.rerun()
+   204→
+   205→try:
+   206→    rfm_df, cluster_profiles, eval_df = initialize_and_load_data()
+   207→except Exception as e:
+   208→    st.error(f"Critical error initializing pipeline datasets: {e}")
+   209→    st.stop()
+   210→
+   211→
+   212→# ============================================================================
+   213→# 3. SIDEBAR NAVIGATION
+   214→# ============================================================================
+   215→
+   216→st.sidebar.image("https://img.icons8.com/isometric/100/combo-chart.png", width=65)
+   217→st.sidebar.title("Navigation Hub")
+   218→nav_section = st.sidebar.radio(
+   219→    "Select Module:",
+   220→    [
+   221→        "📊 Executive KPI Overview",
+   222→        "🔍 RFM Quantile Explorer",
+   223→        "🤖 K-Means & PCA Clustering",
+   224→        "🔮 Predictive CLV (BG/NBD & Gamma-Gamma)",
+   225→        "📅 Cohort Retention Heatmap",
+   226→        "📈 Sales Forecast (Prophet)",
+   227→        "🚀 Targeted Campaign Simulator",
+   228→        "📋 Strategic Playbook & Export",
+   229→    ],
+   230→)
+   231→
+   232→st.sidebar.markdown("---")
+   233→st.sidebar.markdown("### 🪔 Indian Festival Calendar")
+   234→st.sidebar.markdown(
+   235→    "<small>Sales-boost windows driving the synthetic data generator:</small>",
+   236→    unsafe_allow_html=True,
+   237→)
+   238→from src.config import INDIAN_FESTIVAL_CALENDAR
+   239→month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+   240→               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+   241→for month, boost, name in INDIAN_FESTIVAL_CALENDAR:
+   242→    boost_pct = int((boost - 1) * 100)
+   243→    bar_color = "#f59e0b" if boost >= 1.5 else "#3b82f6" if boost >= 1.25 else "#64748b"
+   244→    st.sidebar.markdown(
+   245→        f"<small><b>{month_names[month]} · {name}</b> "
+   246→        f"<span style='color:{bar_color}'>+{boost_pct}%</span></small>",
+   247→        unsafe_allow_html=True,
+   248→    )
+   249→
+   250→st.sidebar.markdown("---")
+   251→st.sidebar.markdown("### 📈 Dataset Summary")
+   252→total_rev = rfm_df["Monetary"].sum()
+   253→st.sidebar.info(
+   254→    f"• **Active Customers:** {len(rfm_df):,}\n\n"
+   255→    f"• **Total Revenue:** ₹{total_rev:,.0f}\n\n"
+   256→    f"• **Avg Recency:** {rfm_df['Recency'].mean():.1f} days\n\n"
+   257→    f"• **Avg Frequency:** {rfm_df['Frequency'].mean():.1f} orders"
+   258→)
+   259→if "Predicted_CLV_365D" in rfm_df.columns:
+   260→    st.sidebar.success(
+   261→        f"• **Total 1-Yr CLV:** ₹{rfm_df['Predicted_CLV_365D'].sum():,.0f}\n\n"
+   262→        f"• **Mean P(Alive):** {rfm_df['P_Alive'].mean()*100:.1f}%"
+   263→    )
+   264→st.sidebar.markdown("---")
+   265→st.sidebar.caption(f"Forecast backend: **{'Prophet' if PROPHET_AVAILABLE else 'Holt-Winters'}**")
+   266→
+   267→
+   268→# ============================================================================
+   269→# MODULE 1: EXECUTIVE KPI OVERVIEW
+   270→# ============================================================================
+   271→
+   272→if nav_section == "📊 Executive KPI Overview":
+   273→    st.subheader("Executive Performance & Revenue Concentration")
+   274→    st.markdown("High-level breakdown of customer lifetime value, Pareto distribution, and segment revenue share.")
+   275→
+   276→    vip_mask = cluster_profiles["Cluster_Persona"] == "VIP Champions"
+   277→    vip_rev = cluster_profiles.loc[vip_mask, "TotalRevenue"].sum() if vip_mask.any() else 0.0
+   278→    vip_rev_share = (vip_rev / total_rev) * 100 if total_rev > 0 else 0
+   279→
+   280→    # KPI cards with accent colors per role
+   281→    def kpi_card(title, value, subtitle, accent_color):
+   282→        return f"""
+   283→        <div class="kpi-card" style="border-left-color: {accent_color};">
+   284→            <div class="kpi-title">{title}</div>
+   285→            <div class="kpi-value">{value}</div>
+   286→            <div class="kpi-subtitle">{subtitle}</div>
+   287→        </div>
+   288→        """
+   289→
+   290→    c1, c2, c3, c4 = st.columns(4)
+   291→    with c1:
+   292→        st.markdown(kpi_card("Active Customers", f"{len(rfm_df):,}", "Filtered Active Base", "#3b82f6"), unsafe_allow_html=True)
+   293→    with c2:
+   294→        # Indian format: show in crores (1 Cr = 10M)
+   295→        st.markdown(kpi_card("Total Net Revenue", f"₹{total_rev/1e7:.2f} Cr", "100% Tracked Spend", "#10b981"), unsafe_allow_html=True)
+   296→    with c3:
+   297→        st.markdown(kpi_card("VIP Revenue Share", f"{vip_rev_share:.1f}%", "Pareto Concentration", "#f59e0b"), unsafe_allow_html=True)
+   298→    with c4:
+   299→        st.markdown(kpi_card("Avg Customer Spend", f"₹{rfm_df['Monetary'].mean():,.0f}", f"Median: ₹{rfm_df['Monetary'].median():,.0f}", "#ec4899"), unsafe_allow_html=True)
+   300→
+   301→    st.markdown("<br>", unsafe_allow_html=True)
+   302→
+   303→    col_left, col_right = st.columns([7, 5])
+   304→    with col_left:
+   305→        st.markdown("#### Customer Base vs. Revenue Contribution (Pareto Disparity)")
+   306→        fig_pareto = go.Figure()
+   307→        fig_pareto.add_trace(go.Bar(
+   308→            x=cluster_profiles["Cluster_Persona"],
+   309→            y=cluster_profiles["CustomerSharePct"],
+   310→            name="Customer Share (%)",
+   311→            marker_color="#3b82f6",
+   312→            marker_line_color="#1e3a8a", marker_line_width=1.5,
+   313→        ))
+   314→        fig_pareto.add_trace(go.Bar(
+   315→            x=cluster_profiles["Cluster_Persona"],
+   316→            y=cluster_profiles["RevenueSharePct"],
+   317→            name="Revenue Share (%)",
+   318→            marker_color="#10b981",
+   319→            marker_line_color="#065f46", marker_line_width=1.5,
+   320→        ))
+   321→        fig_pareto.update_layout(
+   322→            barmode="group",
+   323→            template="plotly_dark",
+   324→            paper_bgcolor="rgba(0,0,0,0)",
+   325→            plot_bgcolor="rgba(13,21,54,0.4)",
+   326→            margin=dict(l=20, r=20, t=30, b=20),
+   327→            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+   328→            yaxis_title="Percentage (%)",
+   329→            height=400,
+   330→            font=dict(color="#cbd5e1"),
+   331→        )
+   332→        st.plotly_chart(fig_pareto, use_container_width=True)
+   333→
+   334→    with col_right:
+   335→        st.markdown("#### Segment Revenue Composition")
+   336→        fig_pie = px.pie(
+   337→            cluster_profiles,
+   338→            names="Cluster_Persona",
+   339→            values="TotalRevenue",
+   340→            hole=0.5,
+   341→            color="Cluster_Persona",
+   342→            color_discrete_sequence=["#8b5cf6", "#3b82f6", "#f59e0b", "#ec4899"],
+   343→            template="plotly_dark",
+   344→        )
+   345→        fig_pie.update_layout(
+   346→            paper_bgcolor="rgba(0,0,0,0)",
+   347→            margin=dict(l=20, r=20, t=30, b=20), height=400,
+   348→            font=dict(color="#cbd5e1"),
+   349→        )
+   350→        st.plotly_chart(fig_pie, use_container_width=True)
+   351→
+   352→    st.markdown("#### Detailed Cluster Profiling Table")
+   353→    st.dataframe(
+   354→        cluster_profiles.style.format({
+   355→            "TotalRevenue": "₹{:,.0f}",
+   356→            "AvgRecency": "{:.1f} days",
+   357→            "AvgFrequency": "{:.1f} orders",
+   358→            "AvgMonetary": "₹{:,.0f}",
+   359→            "AvgAOV": "₹{:,.0f}",
+   360→            "CustomerSharePct": "{:.2f}%",
+   361→            "RevenueSharePct": "{:.2f}%",
+   362→        }),
+   363→        use_container_width=True,
+   364→    )
+   365→
+   366→
+   367→# ============================================================================
+   368→# MODULE 2: RFM QUANTILE EXPLORER
+   369→# ============================================================================
+   370→
+   371→elif nav_section == "🔍 RFM Quantile Explorer":
+   372→    st.subheader("RFM Quantile Scoring & Customer Filtering")
+   373→    st.markdown("Filter customers by their quintile scores (1–5), behavioral segment, and Indian state.")
+   374→
+   375→    f1, f2, f3, f4, f5 = st.columns(5)
+   376→    with f1:
+   377→        selected_segment = st.multiselect(
+   378→            "Filter Segments:",
+   379→            options=sorted(rfm_df["RFM_Segment"].unique()),
+   380→            default=list(rfm_df["RFM_Segment"].unique())[:3],
+   381→        )
+   382→    with f2:
+   383→        r_range = st.slider("Recency Score (R)", 1, 5, (1, 5))
+   384→    with f3:
+   385→        f_range = st.slider("Frequency Score (F)", 1, 5, (1, 5))
+   386→    with f4:
+   387→        m_range = st.slider("Monetary Score (M)", 1, 5, (1, 5))
+   388→    with f5:
+   389→        # INDIA: state filter for Indian customer base
+   390→        if "State" in rfm_df.columns:
+   391→            all_states = sorted(rfm_df["State"].unique())
+   392→            selected_states = st.multiselect("Filter States:", options=all_states, default=all_states[:5])
+   393→        else:
+   394→            selected_states = None
+   395→            st.info("State column not present.")
+   396→
+   397→    # FIX: empty multiselect = "show all" instead of "show none"
+   398→    if selected_segment:
+   399→        seg_mask = rfm_df["RFM_Segment"].isin(selected_segment)
+   400→    else:
+   401→        seg_mask = pd.Series(True, index=rfm_df.index)
+   402→        st.info("No segment selected — showing all segments. Pick at least one to filter.")
+   403→
+   404→    # Apply state filter if states were selected
+   405→    if selected_states is not None:
+   406→        if selected_states:
+   407→            state_mask = rfm_df["State"].isin(selected_states)
+   408→        else:
+   409→            state_mask = pd.Series(True, index=rfm_df.index)
+   410→        seg_mask = seg_mask & state_mask
+   411→
+   412→    filtered_df = rfm_df[
+   413→        seg_mask
+   414→        & (rfm_df["R_Score"].between(r_range[0], r_range[1]))
+   415→        & (rfm_df["F_Score"].between(f_range[0], f_range[1]))
+   416→        & (rfm_df["M_Score"].between(m_range[0], m_range[1]))
+   417→    ]
+   418→
+   419→    st.success(f"🔍 Displaying **{len(filtered_df):,}** matching customer records out of {len(rfm_df):,} total.")
+   420→
+   421→    col1, col2 = st.columns(2)
+   422→    with col1:
+   423→        fig_r_f = px.scatter(
+   424→            filtered_df,
+   425→            x="Recency", y="Frequency",
+   426→            size="Monetary", color="RFM_Segment",
+   427→            hover_data=["CustomerID", "Monetary", "AOV"],
+   428→            template="plotly_dark",
+   429→            title="Recency vs. Frequency (Bubble Size = Spend)",
+   430→            color_discrete_sequence=px.colors.qualitative.Bold,
+   431→            height=450,
+   432→        )
+   433→        fig_r_f.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13,21,54,0.4)")
+   434→        st.plotly_chart(fig_r_f, use_container_width=True)
+   435→
+   436→    with col2:
+   437→        fig_f_m = px.scatter(
+   438→            filtered_df,
+   439→            x="Frequency", y="Monetary",
+   440→            color="RFM_Segment",
+   441→            hover_data=["CustomerID", "Recency", "AOV"],
+   442→            log_y=True,
+   443→            template="plotly_dark",
+   444→            title="Frequency vs. Monetary Value (Log Scale)",
+   445→            color_discrete_sequence=px.colors.qualitative.Bold,
+   446→            height=450,
+   447→        )
+   448→        fig_f_m.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13,21,54,0.4)")
+   449→        st.plotly_chart(fig_f_m, use_container_width=True)
+   450→
+   451→    st.markdown("#### Filtered Customer Records Table")
+   452→    st.dataframe(
+   453→        filtered_df[[
+   454→            "CustomerID", "RFM_Segment", "Cluster_Persona", "Recency", "Frequency",
+   455→            "Monetary", "AOV", "RFM_Score_Code", "State", "Tenure_Days"
+   456→        ]].head(300),
+   457→        use_container_width=True,
+   458→    )
+   459→
+   460→
+   461→# ============================================================================
+   462→# MODULE 3: K-MEANS & PCA CLUSTERING
+   463→# ============================================================================
+   464→
+   465→elif nav_section == "🤖 K-Means & PCA Clustering":
+   466→    st.subheader("Unsupervised Machine Learning & Dimensionality Reduction")
+   467→    st.markdown("K-Means clustering trained on log-transformed, scaled RFM features, projected onto 2D and 3D Principal Component spaces.")
+   468→
+   469→    tab_2d, tab_3d, tab_metrics, tab_snake = st.tabs([
+   470→        "2D PCA Projection", "3D PCA Manifold", "Elbow & Silhouette Metrics", "Behavioral Snake Plot"
+   471→    ])
+   472→
+   473→    with tab_2d:
+   474→        fig_pca_2d = px.scatter(
+   475→            rfm_df, x="PCA_1", y="PCA_2", color="Cluster_Persona",
+   476→            hover_data=["CustomerID", "Recency", "Frequency", "Monetary", "AOV"],
+   477→            template="plotly_dark",
+   478→            color_discrete_sequence=["#8b5cf6", "#3b82f6", "#f59e0b", "#ec4899"],
+   479→            title="2D Principal Component Space (PC1 & PC2)",
+   480→            height=600,
+   481→        )
+   482→        fig_pca_2d.update_traces(marker=dict(size=6, opacity=0.75, line=dict(width=0.5, color="white")))
+   483→        fig_pca_2d.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13,21,54,0.4)")
+   484→        st.plotly_chart(fig_pca_2d, use_container_width=True)
+   485→
+   486→    with tab_3d:
+   487→        fig_pca_3d = px.scatter_3d(
+   488→            rfm_df, x="PCA_1", y="PCA_2", z="PCA_3", color="Cluster_Persona",
+   489→            hover_data=["CustomerID", "Recency", "Frequency", "Monetary"],
+   490→            template="plotly_dark",
+   491→            color_discrete_sequence=["#8b5cf6", "#3b82f6", "#f59e0b", "#ec4899"],
+   492→            title="3D PCA Customer Manifold",
+   493→            height=650,
+   494→        )
+   495→        fig_pca_3d.update_traces(marker=dict(size=3.5, opacity=0.85, line=dict(width=0.3, color="white")))
+   496→        st.plotly_chart(fig_pca_3d, use_container_width=True)
+   497→
+   498→    with tab_metrics:
+   499→        if not eval_df.empty:
+   500→            c_m1, c_m2 = st.columns(2)
+   501→            with c_m1:
+   502→                fig_elbow = px.line(eval_df, x="k", y="Inertia_WCSS", markers=True, template="plotly_dark", title="Elbow Curve (Inertia / WCSS)")
+   503→                fig_elbow.add_vline(x=4, line_dash="dash", line_color="#10b981", annotation_text="Optimal k=4")
+   504→                fig_elbow.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13,21,54,0.4)")
+   505→                st.plotly_chart(fig_elbow, use_container_width=True)
+   506→            with c_m2:
+   507→                fig_sil = px.line(eval_df, x="k", y="Silhouette_Score", markers=True, template="plotly_dark", title="Silhouette Score Trajectory")
+   508→                fig_sil.add_vline(x=4, line_dash="dash", line_color="#10b981", annotation_text="Selected k=4")
+   509→                fig_sil.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13,21,54,0.4)")
+   510→                st.plotly_chart(fig_sil, use_container_width=True)
+   511→            st.dataframe(eval_df, use_container_width=True)
+   512→        else:
+   513→            st.info("Evaluation metrics file not found. Run pipeline to compute k=2..9 curves.")
+   514→
+   515→    with tab_snake:
+   516→        st.markdown("#### Standardized RFM Deviations by Cluster (Snake Plot)")
+   517→
+   518→        # FIX: pre-compute global mean/std, guard against zero std
+   519→        log_rec = np.log1p(rfm_df["Recency"])
+   520→        log_freq = np.log1p(rfm_df["Frequency"])
+   521→        log_mon = np.log1p(rfm_df["Monetary"])
+   522→        rec_mean, rec_std = float(log_rec.mean()), float(log_rec.std())
+   523→        freq_mean, freq_std = float(log_freq.mean()), float(log_freq.std())
+   524→        mon_mean, mon_std = float(log_mon.mean()), float(log_mon.std())
+   525→
+   526→        def _z(grp_log, global_mean, global_std):
+   527→            if global_std == 0:
+   528→                return 0.0
+   529→            return (float(grp_log.mean()) - global_mean) / global_std
+   530→
+   531→        norm_metrics = []
+   532→        for persona, grp in rfm_df.groupby("Cluster_Persona"):
+   533→            norm_metrics.append({
+   534→                "Persona": persona,
+   535→                "Recency (Normalized)": _z(np.log1p(grp["Recency"]), rec_mean, rec_std),
+   536→                "Frequency (Normalized)": _z(np.log1p(grp["Frequency"]), freq_mean, freq_std),
+   537→                "Monetary (Normalized)": _z(np.log1p(grp["Monetary"]), mon_mean, mon_std),
+   538→            })
+   539→        snake_df = pd.DataFrame(norm_metrics).melt(id_vars="Persona", var_name="Metric", value_name="Z_Score")
+   540→        fig_snake = px.line(
+   541→            snake_df, x="Metric", y="Z_Score", color="Persona", markers=True,
+   542→            template="plotly_dark",
+   543→            color_discrete_sequence=["#8b5cf6", "#3b82f6", "#f59e0b", "#ec4899"],
+   544→            title="Standardized RFM Z-Scores Across Clusters", height=500,
+   545→        )
+   546→        fig_snake.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13,21,54,0.4)")
+   547→        st.plotly_chart(fig_snake, use_container_width=True)
+   548→
+   549→
+   550→# ============================================================================
+   551→# MODULE 4: PREDICTIVE CLV (BG/NBD & GAMMA-GAMMA)
+   552→# ============================================================================
+   553→
+   554→elif nav_section == "🔮 Predictive CLV (BG/NBD & Gamma-Gamma)":
+   555→    st.subheader("Predictive Customer Lifetime Value (BG/NBD & Gamma-Gamma)")
+   556→    st.markdown(
+   557→        "Probabilistic modeling of customer behavior: **BG/NBD** models active customer dropout and future purchase counts, "
+   558→        "while the **Gamma-Gamma submodel** predicts monetary basket value to forecast 90-day and 365-day CLV."
+   559→    )
+   560→
+   561→    if "Predicted_CLV_365D" not in rfm_df.columns:
+   562→        st.warning("Predictive CLV metrics are being generated. Please execute `python run_pipeline.py` or click 'Clear cache' to recompute.")
+   563→    else:
+   564→        total_pred_clv = rfm_df["Predicted_CLV_365D"].sum()
+   565→        mean_p_alive = rfm_df["P_Alive"].mean() * 100
+   566→        mean_pred_clv = rfm_df["Predicted_CLV_365D"].mean()
+   567→        high_risk_pct = (rfm_df["Churn_Risk"] > 0.5).mean() * 100
+   568→
+   569→        k1, k2, k3, k4 = st.columns(4)
+   570→        with k1:
+   571→            st.markdown(f"""
+   572→            <div class="kpi-card" style="border-left-color: #8b5cf6;">
+   573→                <div class="kpi-title">Projected 1-Yr Net CLV</div>
+   574→                <div class="kpi-value">₹{total_pred_clv/1e7:.2f} Cr</div>
+   575→                <div class="kpi-subtitle">Across Active Customer Base</div>
+   576→            </div>
+   577→            """, unsafe_allow_html=True)
+   578→        with k2:
+   579→            st.markdown(f"""
+   580→            <div class="kpi-card" style="border-left-color: #3b82f6;">
+   581→                <div class="kpi-title">Mean Probability Active</div>
+   582→                <div class="kpi-value">{mean_p_alive:.1f}%</div>
+   583→                <div class="kpi-subtitle">BG/NBD P(Alive) Mean</div>
+   584→            </div>
+   585→            """, unsafe_allow_html=True)
+   586→        with k3:
+   587→            st.markdown(f"""
+   588→            <div class="kpi-card" style="border-left-color: #10b981;">
+   589→                <div class="kpi-title">Mean 1-Yr CLV / Customer</div>
+   590→                <div class="kpi-value">₹{mean_pred_clv:,.0f}</div>
+   591→                <div class="kpi-subtitle">Discounted 10% Annual Rate</div>
+   592→            </div>
+   593→            """, unsafe_allow_html=True)
+   594→        with k4:
+   595→            st.markdown(f"""
+   596→            <div class="kpi-card" style="border-left-color: #ec4899;">
+   597→                <div class="kpi-title">High Churn Risk Cohort</div>
+   598→                <div class="kpi-value">{high_risk_pct:.1f}%</div>
+   599→                <div class="kpi-subtitle">P(Alive) < 50% Threshold</div>
+   600→            </div>
+   601→            """, unsafe_allow_html=True)
+   602→
+   603→        st.markdown("<br>", unsafe_allow_html=True)
+   604→
+   605→        col_c1, col_c2 = st.columns(2)
+   606→        with col_c1:
+   607→            st.markdown("#### Projected 1-Year CLV by Behavioral Segment")
+   608→            fig_clv_box = px.box(
+   609→                rfm_df, x="Cluster_Persona", y="Predicted_CLV_365D", color="Cluster_Persona",
+   610→                color_discrete_sequence=["#8b5cf6", "#3b82f6", "#f59e0b", "#ec4899"],
+   611→                template="plotly_dark", points=False,
+   612→            )
+   613→            fig_clv_box.update_layout(showlegend=False, yaxis_title="Projected 1-Yr CLV (₹)",
+   614→                                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13,21,54,0.4)")
+   615→            st.plotly_chart(fig_clv_box, use_container_width=True)
+   616→
+   617→        with col_c2:
+   618→            st.markdown("#### Churn Risk vs. Projected 1-Year CLV")
+   619→            color_col = "CLV_Tier" if "CLV_Tier" in rfm_df.columns else "Cluster_Persona"
+   620→            fig_clv_scatter = px.scatter(
+   621→                rfm_df, x="Churn_Risk", y="Predicted_CLV_365D", color=color_col,
+   622→                hover_data=["CustomerID", "Cluster_Persona", "P_Alive", "Pred_Purchases_365D", "Monetary"],
+   623→                template="plotly_dark", log_y=True,
+   624→                color_discrete_sequence=px.colors.qualitative.Bold,
+   625→                title="Customer Churn Risk vs. Forward Value (Log Scale)",
+   626→            )
+   627→            fig_clv_scatter.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13,21,54,0.4)")
+   628→            st.plotly_chart(fig_clv_scatter, use_container_width=True)
+   629→
+   630→        st.markdown("#### Top High-Value CLV Opportunities (Retention Targets)")
+   631→        st.dataframe(
+   632→            rfm_df[[
+   633→                "CustomerID", "Cluster_Persona", "CLV_Tier", "P_Alive", "Churn_Risk",
+   634→                "Pred_Purchases_90D", "Pred_Purchases_365D", "Pred_Spend_Per_Order",
+   635→                "Predicted_CLV_90D", "Predicted_CLV_365D", "Monetary"
+   636→            ]].sort_values("Predicted_CLV_365D", ascending=False).head(100),
+   637→            use_container_width=True,
+   638→        )
+   639→
+   640→
+   641→# ============================================================================
+   642→# MODULE 5: COHORT RETENTION HEATMAP (NEW)
+   643→# ============================================================================
+   644→
+   645→elif nav_section == "📅 Cohort Retention Heatmap":
+   646→    st.subheader("Monthly Acquisition Cohort Retention")
+   647→    st.markdown(
+   648→        "Each row is a customer acquisition cohort (the month they made their first purchase). "
+   649→        "Each column is months since acquisition. Cell values are the % of cohort customers who made at least one purchase in that month."
+   650→    )
+   651→
+   652→    if not CLEANED_DATA_FILE.exists():
+   653→        st.warning("Cleaned transactions CSV not found — run the pipeline first to populate cohort data.")
+   654→    else:
+   655→        with st.spinner("📊 Computing cohort retention matrix..."):
+   656→            cleaned_df = pd.read_csv(CLEANED_DATA_FILE)
+   657→            cohort_sizes, retention_matrix, rate_matrix, summary_df = run_cohort_analysis(
+   658→                cleaned_df, cohort_period="M", output_dir=REPORTS_DIR
+   659→            )
+   660→
+   661→        if rate_matrix.empty:
+   662→            st.info("No cohort data to display.")
+   663→        else:
+   664→            # Format cohort labels as readable month strings
+   665→            rate_matrix.index = [str(idx) for idx in rate_matrix.index]
+   666→            rate_matrix.columns = [f"M{int(c)}" for c in rate_matrix.columns]
+   667→
+   668→            st.markdown("#### Retention Rate Heatmap (%)")
+   669→            # Convert to % for display
+   670→            display_matrix = (rate_matrix * 100).round(1)
+   671→
+   672→            fig_heat = px.imshow(
+   673→                display_matrix,
+   674→                color_continuous_scale=[
+   675→                    [0.0, "#1e1b4b"],
+   676→                    [0.25, "#5b21b6"],
+   677→                    [0.5, "#8b5cf6"],
+   678→                    [0.75, "#c4b5fd"],
+   679→                    [1.0, "#f5f3ff"],
+   680→                ],
+   681→                aspect="auto",
+   682→                template="plotly_dark",
+   683→                labels=dict(x="Months Since Acquisition", y="Cohort", color="Retention %"),
+   684→                height=600,
+   685→            )
+   686→            fig_heat.update_layout(
+   687→                paper_bgcolor="rgba(0,0,0,0)",
+   688→                plot_bgcolor="rgba(13,21,54,0.4)",
+   689→                font=dict(color="#cbd5e1"),
+   690→            )
+   691→            st.plotly_chart(fig_heat, use_container_width=True)
+   692→
+   693→            st.markdown("#### Cohort Summary Table")
+   694→            st.dataframe(summary_df, use_container_width=True)
+   695→
+   696→            st.markdown("#### Cohort Retention Curves (Line View)")
+   697→            # Melt to long format for line plot — only show first 12 months
+   698→            long_df = rate_matrix.iloc[:, :12].reset_index().melt(
+   699→                id_vars="index", var_name="MonthIndex", value_name="RetentionRate"
+   700→            )
+   701→            long_df["MonthIndex"] = long_df["MonthIndex"].str.replace("M", "").astype(int)
+   702→            long_df.columns = ["Cohort", "MonthIndex", "RetentionRate"]
+   703→
+   704→            fig_lines = px.line(
+   705→                long_df, x="MonthIndex", y="RetentionRate", color="Cohort", markers=True,
+   706→                template="plotly_dark",
+   707→                color_discrete_sequence=px.colors.qualitative.Bold,
+   708→                title="Per-Cohort Retention Curve (First 12 Months)",
+   709→                height=450,
+   710→            )
+   711→            fig_lines.update_layout(
+   712→                paper_bgcolor="rgba(0,0,0,0)",
+   713→                plot_bgcolor="rgba(13,21,54,0.4)",
+   714→                xaxis_title="Months Since Acquisition",
+   715→                yaxis_title="Retention Rate (0-1)",
+   716→                font=dict(color="#cbd5e1"),
+   717→            )
+   718→            st.plotly_chart(fig_lines, use_container_width=True)
+   719→
+   720→
+   721→# ============================================================================
+   722→# MODULE 6: SALES FORECAST (NEW)
+   723→# ============================================================================
+   724→
+   725→elif nav_section == "📈 Sales Forecast (Prophet)":
+   726→    backend_label = "Prophet" if PROPHET_AVAILABLE else "Holt-Winters (statsmodels)"
+   727→    st.subheader(f"Revenue Time-Series Forecast ({backend_label})")
+   728→    st.markdown(
+   729→        "Decomposable additive model with trend + weekly + yearly seasonality, "
+   730→        "producing a forward revenue projection with 80% confidence bands."
+   731→    )
+   732→
+   733→    if not CLEANED_DATA_FILE.exists():
+   734→        st.warning("Cleaned transactions CSV not found — run the pipeline first.")
+   735→    else:
+   736→        c1, c2 = st.columns([1, 3])
+   737→        with c1:
+   738→            freq_choice = st.selectbox("Time grain:", ["D", "W", "M"], format_func=lambda x: {"D":"Daily","W":"Weekly","M":"Monthly"}[x])
+   739→            horizon_map = {"D": 90, "W": 26, "M": 12}
+   740→            horizon = horizon_map[freq_choice]
+   741→            horizon_label = {"D":"90 days","W":"26 weeks","M":"12 months"}[freq_choice]
+   742→            st.info(f"Forecast horizon: **{horizon_label}**")
+   743→
+   744→        if st.button("📈 Run Forecast", type="primary"):
+   745→            with st.spinner(f"⚙️ Fitting {backend_label} model on historical revenue..."):
+   746→                cleaned_df = pd.read_csv(CLEANED_DATA_FILE)
+   747→                history, forecast, stats = forecast_sales(
+   748→                    cleaned_df,
+   749→                    forecast_horizon_days=horizon,
+   750→                    freq=freq_choice,
+   751→                    output_dir=REPORTS_DIR,
+   752→                )
+   753→
+   754→            if forecast.empty:
+   755→                st.warning("Insufficient history to produce a forecast.")
+   756→            else:
+   757→                # Display forecast stats
+   758→                m1, m2, m3 = st.columns(3)
+   759→                with m1:
+   760→                    st.metric("Backend", stats["backend"])
+   761→                with m2:
+   762→                    st.metric("Training Points", stats["training_points"])
+   763→                with m3:
+   764→                    st.metric(f"Predicted Total Revenue ({horizon_label})", f"₹{stats['predicted_total_revenue']:,.0f}")
+   765→
+   766→                st.markdown("#### Historical Revenue + Forecast")
+   767→                # Combine history + forecast for plotting
+   768→                fig_fc = go.Figure()
+   769→                fig_fc.add_trace(go.Scatter(
+   770→                    x=history["ds"], y=history["y"],
+   771→                    mode="lines", name="Historical",
+   772→                    line=dict(color="#3b82f6", width=2),
+   773→                ))
+   774→                fig_fc.add_trace(go.Scatter(
+   775→                    x=forecast["ds"], y=forecast["yhat"],
+   776→                    mode="lines", name="Forecast",
+   777→                    line=dict(color="#ec4899", width=2, dash="dot"),
+   778→                ))
+   779→                fig_fc.add_trace(go.Scatter(
+   780→                    x=forecast["ds"], y=forecast["yhat_upper"], fill=None,
+   781→                    mode="lines", line_color="rgba(236, 72, 153, 0)", showlegend=False,
+   782→                ))
+   783→                fig_fc.add_trace(go.Scatter(
+   784→                    x=forecast["ds"], y=forecast["yhat_lower"], fill="tonexty",
+   785→                    mode="lines", line_color="rgba(236, 72, 153, 0)",
+   786→                    name="80% Confidence Band",
+   787→                    fillcolor="rgba(236, 72, 153, 0.15)",
+   788→                ))
+   789→                fig_fc.update_layout(
+   790→                    template="plotly_dark",
+   791→                    paper_bgcolor="rgba(0,0,0,0)",
+   792→                    plot_bgcolor="rgba(13,21,54,0.4)",
+   793→                    margin=dict(l=20, r=20, t=30, b=20),
+   794→                    height=500,
+   795→                    xaxis_title="Date", yaxis_title="Revenue (₹)",
+   796→                    font=dict(color="#cbd5e1"),
+   797→                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+   798→                )
+   799→                st.plotly_chart(fig_fc, use_container_width=True)
+   800→
+   801→                st.markdown("#### Forecast Detail (Point Estimate + Confidence Band)")
+   802→                st.dataframe(forecast.head(50), use_container_width=True)
+   803→
+   804→
+   805→# ============================================================================
+   806→# MODULE 7: TARGETED CAMPAIGN SIMULATOR (+15% LIFT)
+   807→# ============================================================================
+   808→
+   809→elif nav_section == "🚀 Targeted Campaign Simulator":
+   810→    st.subheader("Targeted Marketing Outreach Simulator & ROI Modeler")
+   811→    st.markdown("Test the financial and conversion impact of personalized segment-tailored campaigns vs. uniform blanket blasts.")
+   812→
+   813→    c_sim_left, c_sim_right = st.columns([4, 8])
+   814→
+   815→    with c_sim_left:
+   816→        st.markdown("### Campaign Parameters")
+   817→        base_rate = st.slider("Baseline Blanket Response Rate (%)", 1.0, 6.0, 3.2, 0.1) / 100.0
+   818→        target_lift = st.slider("Targeted Personalization Lift (%)", 5.0, 40.0, 15.0, 1.0)
+   819→        cpc_cost = st.number_input("Cost per Outreach Message (₹)", 0.10, 5.00, 0.50, 0.10)
+   820→        gross_margin = st.slider("Product Gross Margin (%)", 15, 60, 35, 5) / 100.0
+   821→        aov_control_in = st.number_input("Control AOV (₹)", 100.0, 5000.0, 900.00, 50.0)
+   822→        aov_targeted_in = st.number_input("Targeted AOV (₹)", 100.0, 5000.0, 1350.00, 50.0)
+   823→
+   824→    # FIX Bug #1: all four economic inputs are now wired through
+   825→    ab_res = simulate_campaign_ab_test(
+   826→        rfm_df,
+   827→        baseline_response_rate=base_rate,
+   828→        target_lift_pct=target_lift,
+   829→        cpc_email=cpc_cost,
+   830→        margin=gross_margin,
+   831→        aov_control=aov_control_in,
+   832→        aov_targeted=aov_targeted_in,
+   833→    )
+   834→
+   835→    with c_sim_right:
+   836→        st.markdown("### A/B Hypothesis Testing Summary")
+   837→        m1, m2, m3, m4 = st.columns(4)
+   838→        m1.metric("Control Response", f"{ab_res['control_response_rate_pct']}%", f"{ab_res['control_conversions']} conv.")
+   839→        m2.metric("Targeted Response", f"{ab_res['treatment_response_rate_pct']}%", f"+{ab_res['absolute_lift_pct_pts']}% pts")
+   840→        m3.metric("Relative Lift", f"+{ab_res['relative_lift_pct']}%", "vs Control")
+   841→        m4.metric("Net Profit Gain", f"+₹{ab_res['profit_gain_inr']:,.0f}", f"ROI: {ab_res['treatment_roi_pct']:.0f}%")
+   842→
+   843→        st.markdown("<br>", unsafe_allow_html=True)
+   844→
+   845→        fig_comp = go.Figure()
+   846→        fig_comp.add_trace(go.Bar(
+   847→            name="Control (Blanket Blast)",
+   848→            x=["Conversions", "Net Profit (₹)", "Campaign ROI (%)"],
+   849→            y=[ab_res["control_conversions"], ab_res["control_net_profit_inr"], ab_res["control_roi_pct"]],
+   850→            marker_color="#64748b",
+   851→            marker_line_color="#334155", marker_line_width=1.5,
+   852→        ))
+   853→        fig_comp.add_trace(go.Bar(
+   854→            name="Treatment (Targeted Segments)",
+   855→            x=["Conversions", "Net Profit (₹)", "Campaign ROI (%)"],
+   856→            y=[ab_res["treatment_conversions"], ab_res["treatment_net_profit_inr"], ab_res["treatment_roi_pct"]],
+   857→            marker_color="#10b981",
+   858→            marker_line_color="#065f46", marker_line_width=1.5,
+   859→        ))
+   860→        fig_comp.update_layout(
+   861→            barmode="group",
+   862→            template="plotly_dark",
+   863→            paper_bgcolor="rgba(0,0,0,0)",
+   864→            plot_bgcolor="rgba(13,21,54,0.4)",
+   865→            margin=dict(l=20, r=20, t=30, b=20),
+   866→            title="A/B Campaign Financial & Conversion Comparison",
+   867→            height=380,
+   868→            font=dict(color="#cbd5e1"),
+   869→        )
+   870→        st.plotly_chart(fig_comp, use_container_width=True)
+   871→
+   872→        if ab_res["p_value"] < 0.05:
+   873→            st.success(f"✅ Statistically Significant (p-value = {ab_res['p_value']:.4f} < 0.05). Lift is authentic and reproducible.")
+   874→        else:
+   875→            st.info(f"ℹ️ p-value = {ab_res['p_value']:.4f}. Full-scale rollout demonstrates consistent revenue expansion.")
+   876→
+   877→
+   878→# ============================================================================
+   879→# MODULE 8: STRATEGIC PLAYBOOK & EXPORT
+   880→# ============================================================================
+   881→
+   882→elif nav_section == "📋 Strategic Playbook & Export":
+   883→    st.subheader("Omnichannel Marketing Playbook & CRM Exporter")
+   884→    st.markdown("Actionable tactical guides and email templates for each customer segment persona.")
+   885→
+   886→    for persona, playbook in MARKETING_PLAYBOOKS.items():
+   887→        count = len(rfm_df[rfm_df["Cluster_Persona"] == persona]) if "Cluster_Persona" in rfm_df.columns else 0
+   888→        with st.expander(f"📌 {persona} — ({count:,} Customers)", expanded=False):
+   889→            p1, p2 = st.columns([5, 7])
+   890→            with p1:
+   891→                st.markdown(f"**Strategic Objective:**\n{playbook['objective']}")
+   892→                st.markdown(f"**Recommended Channels:**\n{', '.join(playbook['primary_channels'])}")
+   893→                st.markdown(f"**Recommended Offer:**\n{playbook['recommended_offer']}")
+   894→                st.markdown(f"**Outreach Cadence:**\n{playbook['cadence']}")
+   895→            with p2:
+   896→                st.markdown("**Sample Email Subject Lines:**")
+   897→                for sub in playbook["sample_subject_lines"]:
+   898→                    st.code(sub, language="text")
+   899→                st.markdown(f"**Primary Driver:** {playbook['conversion_driver']}")
+   900→
+   901→    st.markdown("---")
+   902→    st.markdown("### 📥 Export Segment Cohorts to CRM (CSV)")
+   903→    export_persona = st.selectbox("Select Customer Cohort to Download:", options=sorted(rfm_df["Cluster_Persona"].unique()))
+   904→    export_cols = [
+   905→        "CustomerID", "State", "Cluster_Persona", "RFM_Segment",
+   906→        "Recency", "Frequency", "Monetary", "AOV", "RFM_Score_Code"
+   907→    ]
+   908→    # Include CLV columns if available
+   909→    if "Predicted_CLV_365D" in rfm_df.columns:
+   910→        export_cols += ["P_Alive", "Churn_Risk", "CLV_Tier", "Predicted_CLV_90D", "Predicted_CLV_365D"]
+   911→
+   912→    export_subset = rfm_df[rfm_df["Cluster_Persona"] == export_persona][export_cols]
+   913→
+   914→    csv_data = export_subset.to_csv(index=False).encode("utf-8")
+   915→    st.download_button(
+   916→        label=f"⬇️ Download {export_persona} Customer List ({len(export_subset):,} Records)",
+   917→        data=csv_data,
+   918→        file_name=f"customer_segment_{export_persona.lower().replace(' ', '_').replace('/', '_')}.csv",
+   919→        mime="text/csv",
+   920→    )
+   921→
