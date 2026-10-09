@@ -17,24 +17,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { SegmentSummary } from "./types";
+import { formatInr } from "@/lib/format";
 
 type Props = {
   segments: SegmentSummary[];
 };
 
-function formatMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(2)}`;
-}
-
 export function SegmentStrategyTable({ segments }: Props) {
   return (
     <Card className="border-border/60">
       <CardHeader>
-        <CardTitle className="text-base">Segment Summary &amp; Strategy</CardTitle>
+        <CardTitle className="text-base">Segment Summary &amp; Indian Retail Playbook</CardTitle>
         <CardDescription>
-          Customer count, average metrics, and recommended marketing strategy per segment
+          Customer count, revenue impact in INR, behavioral health, and recommended Indian market strategies
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0">
@@ -44,12 +39,12 @@ export function SegmentStrategyTable({ segments }: Props) {
               <TableRow>
                 <TableHead className="w-[180px] pl-6">Segment</TableHead>
                 <TableHead className="text-right">Customers</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead className="text-right">Revenue (INR)</TableHead>
                 <TableHead className="text-right">Avg Recency</TableHead>
-                <TableHead className="text-right">Avg Frequency</TableHead>
-                <TableHead className="text-right">Avg Monetary</TableHead>
-                <TableHead className="pl-6">Description</TableHead>
-                <TableHead>Recommended Strategy</TableHead>
+                <TableHead className="text-right">Avg Orders</TableHead>
+                <TableHead className="text-right">Avg Spend (₹)</TableHead>
+                <TableHead className="pl-6">Profile</TableHead>
+                <TableHead>Recommended Marketing Strategy</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -65,10 +60,10 @@ export function SegmentStrategyTable({ segments }: Props) {
                     </div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {s.count.toLocaleString()}
+                    {s.count.toLocaleString("en-IN")}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatMoney(s.revenue)}
+                  <TableCell className="text-right tabular-nums font-medium text-foreground">
+                    {formatInr(s.revenue, true)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {s.avgRecency.toFixed(1)}d
@@ -77,7 +72,7 @@ export function SegmentStrategyTable({ segments }: Props) {
                     {s.avgFrequency.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatMoney(s.avgMonetary)}
+                    {formatInr(s.avgMonetary, false)}
                   </TableCell>
                   <TableCell className="pl-6">
                     <div className="text-xs text-muted-foreground max-w-[280px] whitespace-normal break-words">
@@ -85,7 +80,7 @@ export function SegmentStrategyTable({ segments }: Props) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-xs max-w-[320px] whitespace-normal break-words">
+                    <div className="text-xs max-w-[340px] whitespace-normal break-words leading-relaxed">
                       {s.strategy}
                     </div>
                   </TableCell>
@@ -94,7 +89,7 @@ export function SegmentStrategyTable({ segments }: Props) {
               {segments.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                    No segments yet. Seed sample data to see results.
+                    No segments yet. Seed demo data to see results.
                   </TableCell>
                 </TableRow>
               )}
@@ -125,7 +120,9 @@ export function SegmentBadges({ segments }: { segments: SegmentSummary[] }) {
             style={{ backgroundColor: s.color }}
           />
           {s.segment}
-          <span className="ml-1 tabular-nums text-muted-foreground">{s.count}</span>
+          <span className="ml-1 tabular-nums text-muted-foreground">
+            {s.count.toLocaleString("en-IN")}
+          </span>
         </Badge>
       ))}
     </div>

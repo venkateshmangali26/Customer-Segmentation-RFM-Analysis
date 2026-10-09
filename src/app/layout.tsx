@@ -27,7 +27,11 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "RFM Dashboard" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
   },
   openGraph: {
     title: "RFM Analysis — Customer Segmentation",

@@ -104,11 +104,16 @@ export default function Home() {
               <Activity className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold leading-tight">
-                Customer Segmentation — RFM Analysis
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-semibold leading-tight">
+                  Customer Segmentation — RFM Analysis
+                </h1>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  India Edition (₹)
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground leading-tight">
-                Recency × Frequency × Monetary scoring
+                Recency × Frequency × Monetary Scoring · Indian Retail &amp; D2C Metrics
               </p>
             </div>
           </div>
@@ -137,7 +142,7 @@ export default function Home() {
               ) : (
                 <Database className="h-4 w-4" />
               )}
-              Seed demo
+              Seed India Demo (₹)
             </Button>
             <AddTransactionDialog onCreated={fetchData} />
           </div>
@@ -226,8 +231,7 @@ export default function Home() {
             </span>
           </div>
           <div>
-            Quantile scoring 1–5 per axis · 11 standard segments · Updated live from the
-            transactions table
+            Quantile scoring 1–5 per axis · 11 behavioral segments · Calibrated for Indian e-commerce &amp; D2C in INR (₹)
           </div>
         </div>
       </footer>

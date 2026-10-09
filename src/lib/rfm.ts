@@ -24,9 +24,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Champions",
     color: "#10b981",
     description:
-      "Your best customers — bought recently, buy often, and spend the most. They are brand advocates who can drive referrals.",
+      "Your highest-value VIP customers who purchase frequently and generate peak GMV. High festive shopping propensity and brand advocacy.",
     strategy:
-      "Reward them with exclusive perks, early access to new products, and a referral program. Avoid heavy discounting — they would buy anyway.",
+      "Personalized WhatsApp VIP concierge, early preview access to Diwali & Big Billion Day flash sales, luxury festive hampers on orders over ₹4,999. Avoid margin-diluting discount codes.",
     rRange: [4, 5],
     fRange: [4, 5],
     mRange: [4, 5],
@@ -35,9 +35,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Loyal",
     color: "#0ea5e9",
     description:
-      "Consistent repeat purchasers with strong monetary value. Reliable revenue base that responds well to upselling.",
+      "Consistent repeat shoppers with healthy basket size across key categories. Dependable backbone of recurring brand revenue.",
     strategy:
-      "Upsell higher-margin products, bundle complementary items, and offer a loyalty program with tier-based rewards.",
+      "Cross-sell across lifestyle & grocery categories, tier-based SuperCoins loyalty rewards, free express delivery on orders above ₹799.",
     rRange: [2, 5],
     fRange: [3, 5],
     mRange: [3, 5],
@@ -46,9 +46,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Potential Loyalists",
     color: "#84cc16",
     description:
-      "Recent customers with above-average frequency. They are still forming habits and deciding whether to commit to your brand.",
+      "Recent buyers with 2–3 purchases showing strong frequency momentum. High conversion potential to long-term brand advocates.",
     strategy:
-      "Onboard them into a loyalty program, send personalized re-engagement offers, and ask for reviews to deepen their investment.",
+      "Onboard into loyalty program, send personalized WhatsApp re-engagement codes (e.g. FESTIVE15), offer bundling discounts on complementary Indian SKUs.",
     rRange: [3, 5],
     fRange: [1, 3],
     mRange: [1, 3],
@@ -57,9 +57,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "New Customers",
     color: "#22d3ee",
     description:
-      "Brand new customers who just made their first purchase. High potential but still unproven.",
+      "First-time shoppers who made their initial purchase recently. Fresh potential requiring swift onboarding and trust building.",
     strategy:
-      "Send a welcome series with onboarding content, a small discount on the next purchase, and a satisfaction check-in.",
+      "Automated WhatsApp welcome series, post-delivery satisfaction survey, flat ₹200 off on second purchase within 14 days to establish habit.",
     rRange: [4, 5],
     fRange: [1, 1],
     mRange: [1, 5],
@@ -68,9 +68,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Promising",
     color: "#a855f7",
     description:
-      "Recent buyers with average spend. Showing early signs of engagement but not yet frequent.",
+      "Recent shoppers with moderate order values. Show early interest but have not yet developed a consistent buying pattern.",
     strategy:
-      "Build brand affinity through content marketing, recommend products similar to their first purchase, and introduce a loyalty program.",
+      "Showcase bestselling regional items, announce upcoming festive sale events (Holi / Rakhi), incentivize second purchase with free shipping over ₹499.",
     rRange: [3, 4],
     fRange: [1, 2],
     mRange: [1, 2],
@@ -79,9 +79,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Need Attention",
     color: "#f59e0b",
     description:
-      "Above-average recency and frequency, but haven't purchased recently. The window to re-engage is closing.",
+      "Above-average historical order value, but inactive for 45–90 days. Risk of drifting away to competitor marketplaces.",
     strategy:
-      "Send a personalized offer or a 'we miss you' campaign. Highlight new products and limited-time perks to bring them back.",
+      "Send a 'We Miss You' campaign via WhatsApp with personalized recommendations and a 15% festive comeback coupon.",
     rRange: [2, 3],
     fRange: [2, 3],
     mRange: [2, 3],
@@ -90,9 +90,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "About To Sleep",
     color: "#fb923c",
     description:
-      "Below-average recency and frequency. They are drifting away from your brand and need a nudge before they churn.",
+      "Below-average recency and frequency. At immediate risk of churn to Amazon/Flipkart/Meesho.",
     strategy:
-      "Reactivate with a time-sensitive discount, a free shipping offer, or a personalized product recommendation.",
+      "Reactivate with a limited-time festive flash offer, popular high-margin trial pack, or UPI instant cashback incentive.",
     rRange: [2, 3],
     fRange: [1, 2],
     mRange: [1, 2],
@@ -101,9 +101,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "At Risk",
     color: "#ef4444",
     description:
-      "Used to buy often and spend a lot, but haven't purchased in a while. High-value customers you must win back.",
+      "Previously frequent high-spenders who haven't ordered in 3–6 months. Critical high-value revenue retention priority.",
     strategy:
-      "Send a 'we want you back' campaign with a meaningful incentive. Personalize based on their past purchases and ask for feedback.",
+      "High-touch retention push: direct WhatsApp & SMS outreach with an exclusive ₹500 off voucher on orders above ₹1,999.",
     rRange: [1, 2],
     fRange: [3, 5],
     mRange: [3, 5],
@@ -112,9 +112,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Cannot Lose Them",
     color: "#dc2626",
     description:
-      "High spenders who haven't purchased in a long time. Losing them would mean losing significant future revenue.",
+      "Top historical spenders who haven't ordered in over 6 months. Losing them heavily impacts annual brand margins.",
     strategy:
-      "Reach out personally with a high-value offer, a renewal of their loyalty benefits, or an exclusive invitation to a VIP event.",
+      "Dedicated account manager or founder-signed outreach, VIP festival gift hamper, and deep celebratory anniversary credit.",
     rRange: [1, 1],
     fRange: [4, 5],
     mRange: [4, 5],
@@ -123,9 +123,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Hibernating",
     color: "#6b7280",
     description:
-      "Low recency, frequency, and monetary. Inactive customers who haven't engaged in a long time.",
+      "Long recency, low order count and basket value. Low return on ad spend for sustained acquisition.",
     strategy:
-      "Send a final re-engagement campaign. If they don't respond, suppress them from regular email lists to protect deliverability.",
+      "Low-cost mass WhatsApp / SMS broadcast during major annual festivals (Diwali / New Year); avoid expensive paid retargeting.",
     rRange: [1, 2],
     fRange: [1, 2],
     mRange: [1, 2],
@@ -134,9 +134,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Lost",
     color: "#9ca3af",
     description:
-      "Lowest scores across all dimensions. They are effectively churned.",
+      "Zero activity for over 8–18 months. Completely churned from the brand ecosystem.",
     strategy:
-      "Use them for lookalike audiences in paid acquisition, or send a single reactivation campaign. Don't waste budget on sustained outreach.",
+      "Suppress from regular paid ad spend; utilize strictly for anonymous lookalike audience creation in Meta & Google Ads.",
     rRange: [1, 1],
     fRange: [1, 1],
     mRange: [1, 1],
@@ -145,9 +145,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     segment: "Average Customers",
     color: "#64748b",
     description:
-      "Customers who don't fit a clear archetype — middling recency, frequency, and monetary value. They represent the broad middle of your customer base.",
+      "Moderate recency, frequency, and order values without a decisive pattern across categories.",
     strategy:
-      "Monitor closely. Move them into a targeted segment with a single relevant offer or product recommendation to push them toward a clearer pattern.",
+      "Nudge into specific category journeys with curated seasonal recommendations to boost AOV beyond ₹1,500.",
     rRange: [1, 5],
     fRange: [1, 5],
     mRange: [1, 5],

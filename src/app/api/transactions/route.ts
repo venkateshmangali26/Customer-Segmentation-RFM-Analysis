@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       create: {
         name: data.customerName,
         email: data.email.toLowerCase(),
-        country: data.country ?? "Unknown",
+        country: data.country ?? "Maharashtra",
         channel: data.channel ?? "Manual Entry",
       },
       update: {
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         customerId: customer.id,
         orderId: data.orderId,
         amount: Number(data.amount.toFixed(2)),
-        currency: "USD",
+        currency: "INR",
         productCategory: data.productCategory ?? null,
         occurredAt,
       },

@@ -16,16 +16,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { SegmentSummary } from "./types";
+import { formatInr } from "@/lib/format";
 
 type Props = {
   segments: SegmentSummary[];
 };
-
-function formatMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(2)}`;
-}
 
 export function SegmentDonut({ segments }: Props) {
   const totalCustomers = segments.reduce((s, x) => s + x.count, 0);
@@ -81,7 +76,7 @@ export function SegmentDonut({ segments }: Props) {
                         {d.value} customers · {d.pct.toFixed(1)}%
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Revenue: {formatMoney(d.revenue)}
+                        Revenue: {formatInr(d.revenue, true)}
                       </div>
                     </div>
                   );

@@ -18,17 +18,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { CustomerRfm, SegmentSummary } from "./types";
+import { formatInr } from "@/lib/format";
 
 type Props = {
   customers: CustomerRfm[];
   segments: SegmentSummary[];
 };
-
-function formatMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(2)}`;
-}
 
 export function RfmBubbleChart({ customers, segments }: Props) {
   // One scatter series per segment for color coding
@@ -130,7 +125,7 @@ export function RfmBubbleChart({ customers, segments }: Props) {
                         Frequency: <span className="font-medium text-foreground">{d.y} orders</span>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Monetary: <span className="font-medium text-foreground">{formatMoney(d.monetary)}</span>
+                        Monetary: <span className="font-medium text-foreground">{formatInr(d.monetary, false)}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         RFM score: <span className="font-mono text-foreground">{d.rfmScore}</span>

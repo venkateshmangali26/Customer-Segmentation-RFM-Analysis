@@ -1,35 +1,66 @@
 import { db } from "@/lib/db";
 
 const FIRST_NAMES = [
-  "Olivia", "Liam", "Emma", "Noah", "Ava", "Ethan", "Sophia", "Mason",
-  "Isabella", "Lucas", "Mia", "Oliver", "Amelia", "Elijah", "Harper",
-  "James", "Evelyn", "Benjamin", "Abigail", "Henry", "Emily", "Alexander",
-  "Grace", "Daniel", "Chloe", "Matthew", "Victoria", "Jackson", "Aria",
-  "Samuel", "Luna", "David", "Layla", "Joseph", "Zoe", "Carter", "Nora",
-  "Owen", "Lily", "Wyatt", "Hannah", "John", "Eleanor", "Luke", "Stella",
-  "Julian", "Mila", "Levi", "Aubrey",
+  // Common Indian female first names
+  "Aanya", "Aadhya", "Ananya", "Diya", "Kiara", "Pari", "Myra", "Anika",
+  "Navya", "Aarohi", "Riya", "Sara", "Ira", "Ishita", "Aditi", "Pooja",
+  "Priya", "Sneha", "Kavya", "Deepika", "Shreya", "Neha", "Tanvi", "Meera",
+  "Swati", "Saanvi", "Shruti", "Anjali", "Roshni", "Sunita", "Lakshmi",
+  // Common Indian male first names
+  "Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan",
+  "Krishna", "Ishaan", "Rohan", "Aryan", "Rahul", "Karan", "Sameer", "Vikram",
+  "Anand", "Pranav", "Nikhil", "Siddharth", "Gaurav", "Harsh", "Akash", "Manish",
+  "Rajesh", "Suresh", "Ramesh", "Deepak", "Amit", "Varun", "Abhishek", "Kunal",
 ];
 
 const LAST_NAMES = [
-  "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
-  "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez",
-  "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
-  "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark",
-  "Ramirez", "Lewis", "Robinson", "Walker", "Young", "Allen", "King",
-  "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores", "Green",
-  "Adams", "Nelson", "Baker", "Hughes", "Carter", "Mitchell", "Roberts",
+  // North India
+  "Sharma", "Verma", "Gupta", "Singh", "Agarwal", "Kapoor", "Khanna", "Mishra", "Pandey", "Tiwari",
+  // West India
+  "Patel", "Shah", "Desai", "Mehta", "Joshi", "Patil", "Kulkarni", "Dalal", "Modi", "Pawar",
+  // South India
+  "Reddy", "Iyer", "Nair", "Rao", "Shetty", "Murthy", "Subramanian", "Menon", "Pillai", "Venkatesh",
+  // East India
+  "Banerjee", "Chatterjee", "Bhattacharya", "Mukherjee", "Das", "Ghosh", "Sengupta", "Bose", "Roy",
 ];
 
-const COUNTRIES = [
-  "United States", "United Kingdom", "Canada", "Australia", "Germany",
-  "France", "Japan", "Brazil", "India", "Singapore",
+// Major Indian States & Territories by E-commerce Hubs
+const INDIAN_STATES = [
+  "Maharashtra",
+  "Karnataka",
+  "Delhi NCR",
+  "Tamil Nadu",
+  "Telangana",
+  "Gujarat",
+  "Uttar Pradesh",
+  "West Bengal",
+  "Rajasthan",
+  "Kerala",
+  "Punjab",
+  "Haryana",
+  "Madhya Pradesh",
+  "Andhra Pradesh",
+  "Bihar",
 ];
 
-const CHANNELS = ["Web", "Mobile App", "Retail Store", "Email Campaign", "Marketplace"];
+const CHANNELS = [
+  "WhatsApp Store",
+  "Mobile App",
+  "Web Store",
+  "Amazon.in / Flipkart",
+  "Quick Commerce",
+  "Retail Outlet",
+];
 
 const PRODUCT_CATEGORIES = [
-  "Electronics", "Apparel", "Home & Kitchen", "Beauty", "Books",
-  "Sports", "Toys", "Grocery", "Office", "Garden",
+  "Ethnic & Contemporary Fashion",
+  "Mobile & Tech Accessories",
+  "Home & Kitchen Essentials",
+  "Ayurveda & Wellness",
+  "Beauty & Personal Care",
+  "Grocery, Spices & Gourmet",
+  "Festival Specials & Hampers",
+  "Books, Puja & Handicrafts",
 ];
 
 function randInt(min: number, max: number): number {
@@ -41,7 +72,7 @@ function pick<T>(arr: T[]): T {
 }
 
 function randomEmail(name: string): string {
-  const domains = ["gmail.com", "outlook.com", "yahoo.com", "icloud.com", "protonmail.com"];
+  const domains = ["gmail.com", "outlook.com", "yahoo.in", "rediffmail.com", "icloud.com"];
   const slug = name.toLowerCase().replace(/\s+/g, ".");
   return `${slug}${randInt(1, 9999)}@${pick(domains)}`;
 }
@@ -51,16 +82,8 @@ function randomName(): string {
 }
 
 /**
- * Generates `count` customers with realistic transaction histories
- * biased to produce a healthy spread across all RFM segments.
- *
- * The generator deliberately shapes the distribution:
- * - 10% Champion-like (frequent, recent, high spend)
- * - 15% Loyal (frequent, mid-recency, good spend)
- * - 15% At-Risk (used to buy often, but long recency)
- * - 25% New / Promising / Potential Loyalists (recent, low frequency)
- * - 20% Need Attention / About to Sleep (mid recency, low frequency)
- * - 15% Hibernating / Lost (long recency, low frequency and monetary)
+ * Generates `count` customers with realistic transaction histories in INR (₹)
+ * biased to produce a healthy spread across all RFM segments in the Indian market.
  */
 export async function seedSampleData(customerCount = 220): Promise<{
   customers: number;
@@ -76,8 +99,6 @@ export async function seedSampleData(customerCount = 220): Promise<{
   const customers = [];
   const transactions = [];
 
-  // Pre-assign a behavioral archetype to each customer so the resulting
-  // RFM distribution looks realistic instead of uniform random.
   const archetypes = allocateArchetypes(customerCount);
 
   for (let i = 0; i < customerCount; i++) {
@@ -86,7 +107,7 @@ export async function seedSampleData(customerCount = 220): Promise<{
       id: `cust_${i + 1}_${Math.random().toString(36).slice(2, 8)}`,
       name,
       email: randomEmail(name),
-      country: pick(COUNTRIES),
+      country: pick(INDIAN_STATES),
       channel: pick(CHANNELS),
       createdAt: new Date(now - randInt(30, 720) * dayMs),
       updatedAt: new Date(),
@@ -169,20 +190,21 @@ function generateTransactionsForArchetype(
     createdAt: Date;
   }> = [];
 
+  // Realistic INR (₹) ticket sizes for typical Indian D2C & marketplace shopping
   const config: Record<
     Archetype,
     { recency: [number, number]; orders: [number, number]; spend: [number, number] }
   > = {
-    champion: { recency: [1, 14], orders: [8, 18], spend: [120, 400] },
-    loyal: { recency: [15, 45], orders: [6, 12], spend: [80, 250] },
-    potential: { recency: [5, 30], orders: [3, 6], spend: [40, 120] },
-    new: { recency: [1, 14], orders: [1, 1], spend: [40, 200] },
-    promising: { recency: [10, 40], orders: [1, 2], spend: [30, 80] },
-    attention: { recency: [40, 90], orders: [2, 5], spend: [50, 150] },
-    sleep: { recency: [60, 120], orders: [1, 3], spend: [20, 80] },
-    risk: { recency: [90, 180], orders: [4, 9], spend: [100, 350] },
-    hibernating: { recency: [120, 240], orders: [1, 3], spend: [15, 70] },
-    lost: { recency: [240, 540], orders: [1, 2], spend: [10, 50] },
+    champion: { recency: [1, 14], orders: [8, 18], spend: [2500, 9500] },
+    loyal: { recency: [15, 45], orders: [6, 12], spend: [1500, 6000] },
+    potential: { recency: [5, 30], orders: [3, 6], spend: [1000, 3500] },
+    new: { recency: [1, 14], orders: [1, 1], spend: [800, 3200] },
+    promising: { recency: [10, 40], orders: [1, 2], spend: [700, 2400] },
+    attention: { recency: [40, 90], orders: [2, 5], spend: [1200, 4000] },
+    sleep: { recency: [60, 120], orders: [1, 3], spend: [600, 2000] },
+    risk: { recency: [90, 180], orders: [4, 9], spend: [2000, 7500] },
+    hibernating: { recency: [120, 240], orders: [1, 3], spend: [400, 1500] },
+    lost: { recency: [240, 540], orders: [1, 2], spend: [300, 1100] },
   };
 
   const c = config[type];
@@ -195,13 +217,17 @@ function generateTransactionsForArchetype(
     const offset = i === 0 ? 0 : randInt(15, 90) * i + randInt(5, 30);
     const occurredMs = latestAt - offset * dayMs;
     if (occurredMs < now - 365 * 2 * dayMs) continue; // keep within 2 years
-    const amount = +(randInt(c.spend[0] * 10, c.spend[1] * 10) / 10).toFixed(2);
+    
+    // In INR, rounded to nearest whole rupee or .00
+    const rawAmount = randInt(c.spend[0], c.spend[1]);
+    const amount = Number(rawAmount.toFixed(2));
+
     txs.push({
       id: `tx_${customerId}_${i}_${Math.random().toString(36).slice(2, 8)}`,
       customerId,
-      orderId: `ORD-${customerId.slice(-4)}-${i + 1}`,
+      orderId: `ORD-IN-${customerId.slice(-4)}-${i + 1}`,
       amount,
-      currency: "USD",
+      currency: "INR",
       productCategory: pick(PRODUCT_CATEGORIES),
       occurredAt: new Date(occurredMs),
       createdAt: new Date(),

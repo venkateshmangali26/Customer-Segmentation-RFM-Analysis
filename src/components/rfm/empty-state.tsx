@@ -27,7 +27,7 @@ export function EmptyState({ onSeeded }: Props) {
       }
       const data = await res.json();
       toast.success(
-        `Seeded ${data.seeded.customers} customers and ${data.seeded.transactions} transactions`
+        `Seeded ${data.seeded.customers} Indian customers and ${data.seeded.transactions} orders in INR (₹)`
       );
       onSeeded();
     } catch (err) {
@@ -44,26 +44,25 @@ export function EmptyState({ onSeeded }: Props) {
           <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
             <Database className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-xl">Welcome to RFM Analysis</CardTitle>
+          <CardTitle className="text-xl">Customer Segmentation — India Edition</CardTitle>
           <CardDescription className="text-sm">
             There are no transactions in your database yet. To explore the dashboard,
-            either seed the demo dataset (220 realistic customers across 10 countries)
-            or add your first transaction manually.
+            seed the demo dataset (220 realistic customers across 15 Indian states in INR ₹)
+            or record your first transaction manually.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button onClick={seed} disabled={loading} className="w-full sm:w-auto">
+          <Button onClick={seed} disabled={loading} className="w-full sm:w-auto gap-2">
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
-            {loading ? "Generating..." : "Seed sample dataset"}
+            {loading ? "Generating INR Records..." : "Seed Indian Demo Dataset (₹)"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            The sample dataset includes customers, transaction histories across up to 2 years,
-            and a representative spread across all 11 RFM segments so you can explore the
-            full segmentation immediately.
+            The dataset models authentic Indian purchase behaviors across WhatsApp, apps, and marketplaces,
+            complete with festive surge orders and a realistic spread across all 11 RFM segments.
           </p>
         </CardContent>
       </Card>

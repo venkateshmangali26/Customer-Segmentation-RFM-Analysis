@@ -24,19 +24,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import type { CustomerRfm, SegmentSummary } from "./types";
+import { formatInrExact } from "@/lib/format";
 
 type Props = {
   customers: CustomerRfm[];
   segments: SegmentSummary[];
 };
-
-function formatMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(2)}`;
-}
 
 type SortKey = "recencyDays" | "frequency" | "monetary" | "customerName";
 type SortDir = "asc" | "desc";
@@ -80,7 +75,8 @@ export function CustomerTable({ customers, segments }: Props) {
         !q ||
         c.customerName.toLowerCase().includes(q) ||
         c.email.toLowerCase().includes(q) ||
-        c.country.toLowerCase().includes(q);
+        c.country.toLowerCase().includes(q) ||
+        c.channel.toLowerCase().includes(q);
       const matchesSegment =
         segmentFilter === "all" || c.segment === segmentFilter;
       return matchesSearch && matchesSegment;
@@ -103,31 +99,35 @@ export function CustomerTable({ customers, segments }: Props) {
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      setSortDir(key === "customerName" ? "asc" : "desc");
+      setSortDir(key === "recencyDays" ? "asc" : "desc");
     }
-    setPage(1);
   };
 
   return (
     <Card className="border-border/60">
-      <CardHeader>
-        <CardTitle className="text-base">Customer Detail</CardTitle>
-        <CardDescription>
-          Browse, search, and filter customers by segment. Click a column header to sort.
-        </CardDescription>
-        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+      <CardHeader className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Indian Customer Database &amp; RFM Scores</CardTitle>
+            <CardDescription>
+              {filtered.length} customers found across Indian states · Sorted by {sortKey} ({sortDir})
+            </CardDescription>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search by name, email, or country..."
+              placeholder="Search by customer name, email, or Indian state (e.g. Maharashtra, Karnataka)..."
               className="pl-8"
             />
           </div>
@@ -138,7 +138,7 @@ export function CustomerTable({ customers, segments }: Props) {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[220px]">
               <SelectValue placeholder="Filter by segment" />
             </SelectTrigger>
             <SelectContent>
@@ -159,18 +159,19 @@ export function CustomerTable({ customers, segments }: Props) {
               <TableRow>
                 <TableHead>
                   <button
-                    className="font-medium hover:text-foreground"
+                    className="font-medium hover:text-foreground inline-flex items-center"
                     onClick={() => toggleSort("customerName")}
                   >
                     Customer<SortIndicator col="customerName" sortKey={sortKey} sortDir={sortDir} />
                   </button>
                 </TableHead>
+                <TableHead>State / Region</TableHead>
                 <TableHead>Segment</TableHead>
                 <TableHead>Channel</TableHead>
-                <TableHead>RFM</TableHead>
+                <TableHead>RFM Score</TableHead>
                 <TableHead className="text-right">
                   <button
-                    className="font-medium hover:text-foreground"
+                    className="font-medium hover:text-foreground inline-flex items-center"
                     onClick={() => toggleSort("recencyDays")}
                   >
                     Recency<SortIndicator col="recencyDays" sortKey={sortKey} sortDir={sortDir} />
@@ -178,7 +179,7 @@ export function CustomerTable({ customers, segments }: Props) {
                 </TableHead>
                 <TableHead className="text-right">
                   <button
-                    className="font-medium hover:text-foreground"
+                    className="font-medium hover:text-foreground inline-flex items-center"
                     onClick={() => toggleSort("frequency")}
                   >
                     Frequency<SortIndicator col="frequency" sortKey={sortKey} sortDir={sortDir} />
@@ -186,10 +187,10 @@ export function CustomerTable({ customers, segments }: Props) {
                 </TableHead>
                 <TableHead className="text-right">
                   <button
-                    className="font-medium hover:text-foreground"
+                    className="font-medium hover:text-foreground inline-flex items-center"
                     onClick={() => toggleSort("monetary")}
                   >
-                    Monetary<SortIndicator col="monetary" sortKey={sortKey} sortDir={sortDir} />
+                    Monetary (₹)<SortIndicator col="monetary" sortKey={sortKey} sortDir={sortDir} />
                   </button>
                 </TableHead>
               </TableRow>
@@ -202,6 +203,12 @@ export function CustomerTable({ customers, segments }: Props) {
                     <TableCell>
                       <div className="font-medium">{c.customerName}</div>
                       <div className="text-xs text-muted-foreground">{c.email}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3 text-primary/70 shrink-0" />
+                        <span>{c.country}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span
@@ -220,14 +227,14 @@ export function CustomerTable({ customers, segments }: Props) {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.channel}</TableCell>
                     <TableCell>
-                      <span className="font-mono text-sm">{c.rfmScore}</span>
+                      <span className="font-mono text-sm font-semibold">{c.rfmScore}</span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {c.recencyDays}d
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{c.frequency}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatMoney(c.monetary)}
+                    <TableCell className="text-right tabular-nums font-medium text-foreground">
+                      {formatInrExact(c.monetary)}
                     </TableCell>
                   </TableRow>
                 );
@@ -235,7 +242,7 @@ export function CustomerTable({ customers, segments }: Props) {
               {paged.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center text-muted-foreground py-8"
                   >
                     No customers match your filters.

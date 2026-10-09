@@ -1,8 +1,9 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, DollarSign, ShoppingBag, Receipt } from "lucide-react";
+import { Users, IndianRupee, ShoppingBag, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
+import { formatInr } from "@/lib/format";
 
 type Props = {
   totalCustomers: number;
@@ -10,12 +11,6 @@ type Props = {
   totalTransactions: number;
   avgOrderValue: number;
 };
-
-function formatMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(2)}`;
-}
 
 function StatCard({
   label,
@@ -71,31 +66,31 @@ export function StatCards({
     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         label="Total Customers"
-        value={totalCustomers.toLocaleString()}
+        value={totalCustomers.toLocaleString("en-IN")}
         icon={Users}
         accent="#10b981"
-        hint="Unique customers with at least one transaction"
+        hint="Active customers across Indian states"
       />
       <StatCard
-        label="Total Revenue"
-        value={formatMoney(totalRevenue)}
-        icon={DollarSign}
+        label="Total Revenue (INR)"
+        value={formatInr(totalRevenue, true)}
+        icon={IndianRupee}
         accent="#0ea5e9"
-        hint="Sum of all transaction amounts"
+        hint="Gross sales volume in Indian Rupees"
       />
       <StatCard
-        label="Total Transactions"
-        value={totalTransactions.toLocaleString()}
+        label="Total Orders"
+        value={totalTransactions.toLocaleString("en-IN")}
         icon={Receipt}
         accent="#a855f7"
-        hint="Distinct orders placed"
+        hint="Fulfilled orders across all channels"
       />
       <StatCard
-        label="Avg Order Value"
-        value={formatMoney(avgOrderValue)}
+        label="Average Order Value"
+        value={formatInr(avgOrderValue, false)}
         icon={ShoppingBag}
         accent="#f59e0b"
-        hint="Total revenue divided by total transactions"
+        hint="Average basket size per checkout"
       />
     </div>
   );

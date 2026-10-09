@@ -23,15 +23,42 @@ import {
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-const COUNTRIES = [
-  "United States", "United Kingdom", "Canada", "Australia", "Germany",
-  "France", "Japan", "Brazil", "India", "Singapore",
+const INDIAN_STATES = [
+  "Maharashtra",
+  "Karnataka",
+  "Delhi NCR",
+  "Tamil Nadu",
+  "Telangana",
+  "Gujarat",
+  "Uttar Pradesh",
+  "West Bengal",
+  "Rajasthan",
+  "Kerala",
+  "Punjab",
+  "Haryana",
+  "Madhya Pradesh",
+  "Andhra Pradesh",
+  "Bihar",
 ];
 
-const CHANNELS = ["Web", "Mobile App", "Retail Store", "Email Campaign", "Marketplace"];
+const CHANNELS = [
+  "WhatsApp Store",
+  "Mobile App",
+  "Web Store",
+  "Amazon.in / Flipkart",
+  "Quick Commerce",
+  "Retail Outlet",
+];
+
 const CATEGORIES = [
-  "Electronics", "Apparel", "Home & Kitchen", "Beauty", "Books",
-  "Sports", "Toys", "Grocery", "Office", "Garden",
+  "Ethnic & Contemporary Fashion",
+  "Mobile & Tech Accessories",
+  "Home & Kitchen Essentials",
+  "Ayurveda & Wellness",
+  "Beauty & Personal Care",
+  "Grocery, Spices & Gourmet",
+  "Festival Specials & Hampers",
+  "Books, Puja & Handicrafts",
 ];
 
 type Props = {
@@ -44,11 +71,11 @@ export function AddTransactionDialog({ onCreated }: Props) {
   const [form, setForm] = useState({
     customerName: "",
     email: "",
-    country: "United States",
-    channel: "Web",
+    country: "Maharashtra",
+    channel: "WhatsApp Store",
     orderId: "",
     amount: "",
-    productCategory: "Electronics",
+    productCategory: "Ethnic & Contemporary Fashion",
     occurredAt: new Date().toISOString().slice(0, 10),
   });
 
@@ -60,7 +87,7 @@ export function AddTransactionDialog({ onCreated }: Props) {
     }
     const amountNum = parseFloat(form.amount);
     if (Number.isNaN(amountNum) || amountNum <= 0) {
-      toast.error("Amount must be a positive number");
+      toast.error("Amount must be a positive number in INR (₹)");
       return;
     }
     setLoading(true);
@@ -83,16 +110,16 @@ export function AddTransactionDialog({ onCreated }: Props) {
         const err = await res.json().catch(() => ({ error: "Request failed" }));
         throw new Error(err.error || "Failed to create transaction");
       }
-      toast.success("Transaction added and RFM recomputed");
+      toast.success("Transaction recorded and RFM recomputed in INR");
       setOpen(false);
       setForm({
         customerName: "",
         email: "",
-        country: "United States",
-        channel: "Web",
+        country: "Maharashtra",
+        channel: "WhatsApp Store",
         orderId: "",
         amount: "",
-        productCategory: "Electronics",
+        productCategory: "Ethnic & Contemporary Fashion",
         occurredAt: new Date().toISOString().slice(0, 10),
       });
       onCreated();
@@ -106,28 +133,27 @@ export function AddTransactionDialog({ onCreated }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="default" size="sm" className="gap-1.5 shadow-sm">
           <Plus className="h-4 w-4" />
           Add Transaction
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Add a transaction</DialogTitle>
+          <DialogTitle>Record Order Transaction (INR ₹)</DialogTitle>
           <DialogDescription>
-            Record a new customer purchase. If the customer already exists (matched by email),
-            their stats are updated. RFM scores are recomputed automatically after saving.
+            Record a new customer order. If the customer exists (matched by email), their metrics update automatically and RFM scores re-calculate.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="customerName">Customer name</Label>
+              <Label htmlFor="customerName">Customer Name</Label>
               <Input
                 id="customerName"
                 value={form.customerName}
                 onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                placeholder="Jane Doe"
+                placeholder="Aarav Sharma"
                 required
               />
             </div>
@@ -138,14 +164,14 @@ export function AddTransactionDialog({ onCreated }: Props) {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="jane@example.com"
+                placeholder="aarav.sharma@gmail.com"
                 required
               />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="country">Country</Label>
+              <Label htmlFor="country">State / Region (India)</Label>
               <Select
                 value={form.country}
                 onValueChange={(v) => setForm({ ...form, country: v })}
@@ -154,14 +180,14 @@ export function AddTransactionDialog({ onCreated }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {COUNTRIES.map((c) => (
+                  {INDIAN_STATES.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="channel">Channel</Label>
+              <Label htmlFor="channel">Sales Channel</Label>
               <Select
                 value={form.channel}
                 onValueChange={(v) => setForm({ ...form, channel: v })}
@@ -184,27 +210,27 @@ export function AddTransactionDialog({ onCreated }: Props) {
                 id="orderId"
                 value={form.orderId}
                 onChange={(e) => setForm({ ...form, orderId: e.target.value })}
-                placeholder="ORD-12345"
+                placeholder="ORD-IN-1092"
                 required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="amount">Amount (USD)</Label>
+              <Label htmlFor="amount">Amount (INR ₹)</Label>
               <Input
                 id="amount"
                 type="number"
-                step="0.01"
-                min="0.01"
+                step="1"
+                min="1"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                placeholder="129.99"
+                placeholder="2499"
                 required
               />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="category">Product category</Label>
+              <Label htmlFor="category">Product Category</Label>
               <Select
                 value={form.productCategory}
                 onValueChange={(v) => setForm({ ...form, productCategory: v })}
@@ -220,7 +246,7 @@ export function AddTransactionDialog({ onCreated }: Props) {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="occurredAt">Purchase date</Label>
+              <Label htmlFor="occurredAt">Purchase Date</Label>
               <Input
                 id="occurredAt"
                 type="date"
@@ -236,7 +262,7 @@ export function AddTransactionDialog({ onCreated }: Props) {
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Save &amp; recompute
+              Save &amp; Recompute RFM
             </Button>
           </DialogFooter>
         </form>
