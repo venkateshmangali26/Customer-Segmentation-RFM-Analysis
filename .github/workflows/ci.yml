@@ -1,22 +1,37 @@
-﻿name: CI
+name: CI
+
 on:
   push:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+
 jobs:
   build:
+    name: Lint and Build
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npm run lint
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
         continue-on-error: true
-      - run: npm run build
+
+      - name: Build
+        run: npm run build
         env:
           DATABASE_URL: file:./ci.db
+          NEXT_TELEMETRY_DISABLED: "1"
