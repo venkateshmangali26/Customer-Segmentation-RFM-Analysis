@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { Customer, Transaction } from "@prisma/client";
 
 const FIRST_NAMES = [
   // Common Indian female first names
@@ -96,8 +97,8 @@ export async function seedSampleData(customerCount = 220): Promise<{
 
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;
-  const customers = [];
-  const transactions = [];
+  const customers: Customer[] = [];
+  const transactions: Transaction[] = [];
 
   const archetypes = allocateArchetypes(customerCount);
 

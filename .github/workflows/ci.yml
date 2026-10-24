@@ -33,5 +33,6 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          DATABASE_URL: file:./ci.db
+          DATABASE_URL: "file:./ci.db"
           NEXT_TELEMETRY_DISABLED: "1"
+
