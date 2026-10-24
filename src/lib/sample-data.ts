@@ -72,10 +72,16 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function randomEmail(name: string): string {
+function randomEmail(name: string, index: number, usedEmails: Set<string>): string {
   const domains = ["gmail.com", "outlook.com", "yahoo.in", "rediffmail.com", "icloud.com"];
   const slug = name.toLowerCase().replace(/\s+/g, ".");
-  return `${slug}${randInt(1, 9999)}@${pick(domains)}`;
+  let email = `${slug}.${index + 1}.${randInt(100, 999)}@${pick(domains)}`;
+  let counter = 1;
+  while (usedEmails.has(email)) {
+    email = `${slug}.${index + 1}.${randInt(100, 999)}.${counter++}@${pick(domains)}`;
+  }
+  usedEmails.add(email);
+  return email;
 }
 
 function randomName(): string {
@@ -90,7 +96,7 @@ export async function seedSampleData(customerCount = 220): Promise<{
   customers: number;
   transactions: number;
 }> {
-  // Clear existing data
+  // Clear existing data in correct FK order
   await db.rfmSnapshot.deleteMany();
   await db.transaction.deleteMany();
   await db.customer.deleteMany();
@@ -99,6 +105,7 @@ export async function seedSampleData(customerCount = 220): Promise<{
   const dayMs = 24 * 60 * 60 * 1000;
   const customers: Customer[] = [];
   const transactions: Transaction[] = [];
+  const usedEmails = new Set<string>();
 
   const archetypes = allocateArchetypes(customerCount);
 
@@ -107,7 +114,7 @@ export async function seedSampleData(customerCount = 220): Promise<{
     const customer = {
       id: `cust_${i + 1}_${Math.random().toString(36).slice(2, 8)}`,
       name,
-      email: randomEmail(name),
+      email: randomEmail(name, i, usedEmails),
       country: pick(INDIAN_STATES),
       channel: pick(CHANNELS),
       createdAt: new Date(now - randInt(30, 720) * dayMs),
@@ -120,14 +127,9 @@ export async function seedSampleData(customerCount = 220): Promise<{
     transactions.push(...txs);
   }
 
-  // Bulk insert customers
-  for (const c of customers) {
-    await db.customer.create({ data: c });
-  }
-  // Bulk insert transactions
-  for (const t of transactions) {
-    await db.transaction.create({ data: t });
-  }
+  // Bulk insert using high-performance createMany batching
+  await db.customer.createMany({ data: customers });
+  await db.transaction.createMany({ data: transactions });
 
   return {
     customers: customers.length,

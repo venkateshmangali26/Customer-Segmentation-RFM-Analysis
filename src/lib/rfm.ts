@@ -410,35 +410,23 @@ export async function runRfmAnalysis(referenceDate?: Date): Promise<{
     r.pc2 = pca.points[idx]?.pc2 ?? 0;
   });
 
-  // Step 6: persist
-  await db.$transaction(
-    result.map((r) =>
-      db.rfmSnapshot.upsert({
-        where: { customerId: r.customerId },
-        create: {
-          customerId: r.customerId,
-          recencyDays: r.recencyDays,
-          frequency: r.frequency,
-          monetary: r.monetary,
-          recencyScore: r.recencyScore,
-          frequencyScore: r.frequencyScore,
-          monetaryScore: r.monetaryScore,
-          rfmScore: r.rfmScore,
-          segment: r.segment,
-        },
-        update: {
-          recencyDays: r.recencyDays,
-          frequency: r.frequency,
-          monetary: r.monetary,
-          recencyScore: r.recencyScore,
-          frequencyScore: r.frequencyScore,
-          monetaryScore: r.monetaryScore,
-          rfmScore: r.rfmScore,
-          segment: r.segment,
-        },
-      })
-    )
-  );
+  // Step 6: persist snapshots atomically using batch operations
+  await db.$transaction([
+    db.rfmSnapshot.deleteMany(),
+    db.rfmSnapshot.createMany({
+      data: result.map((r) => ({
+        customerId: r.customerId,
+        recencyDays: r.recencyDays,
+        frequency: r.frequency,
+        monetary: r.monetary,
+        recencyScore: r.recencyScore,
+        frequencyScore: r.frequencyScore,
+        monetaryScore: r.monetaryScore,
+        rfmScore: r.rfmScore,
+        segment: r.segment,
+      })),
+    }),
+  ]);
 
   return {
     referenceDate: refDate.toISOString(),
