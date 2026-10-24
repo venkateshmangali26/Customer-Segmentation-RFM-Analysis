@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { computePca2D } from "@/lib/pca";
 
 // ---------------------------------------------------------------------------
 // RFM segment definitions
@@ -28,8 +29,8 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     strategy:
       "Personalized WhatsApp VIP concierge, early preview access to Diwali & Big Billion Day flash sales, luxury festive hampers on orders over ₹4,999. Avoid margin-diluting discount codes.",
     rRange: [4, 5],
-    fRange: [4, 5],
-    mRange: [4, 5],
+    fRange: [5, 5],
+    mRange: [5, 5],
   },
   {
     segment: "Loyal",
@@ -38,75 +39,9 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
       "Consistent repeat shoppers with healthy basket size across key categories. Dependable backbone of recurring brand revenue.",
     strategy:
       "Cross-sell across lifestyle & grocery categories, tier-based SuperCoins loyalty rewards, free express delivery on orders above ₹799.",
-    rRange: [2, 5],
-    fRange: [3, 5],
-    mRange: [3, 5],
-  },
-  {
-    segment: "Potential Loyalists",
-    color: "#84cc16",
-    description:
-      "Recent buyers with 2–3 purchases showing strong frequency momentum. High conversion potential to long-term brand advocates.",
-    strategy:
-      "Onboard into loyalty program, send personalized WhatsApp re-engagement codes (e.g. FESTIVE15), offer bundling discounts on complementary Indian SKUs.",
     rRange: [3, 5],
-    fRange: [1, 3],
-    mRange: [1, 3],
-  },
-  {
-    segment: "New Customers",
-    color: "#22d3ee",
-    description:
-      "First-time shoppers who made their initial purchase recently. Fresh potential requiring swift onboarding and trust building.",
-    strategy:
-      "Automated WhatsApp welcome series, post-delivery satisfaction survey, flat ₹200 off on second purchase within 14 days to establish habit.",
-    rRange: [4, 5],
-    fRange: [1, 1],
+    fRange: [4, 5],
     mRange: [1, 5],
-  },
-  {
-    segment: "Promising",
-    color: "#a855f7",
-    description:
-      "Recent shoppers with moderate order values. Show early interest but have not yet developed a consistent buying pattern.",
-    strategy:
-      "Showcase bestselling regional items, announce upcoming festive sale events (Holi / Rakhi), incentivize second purchase with free shipping over ₹499.",
-    rRange: [3, 4],
-    fRange: [1, 2],
-    mRange: [1, 2],
-  },
-  {
-    segment: "Need Attention",
-    color: "#f59e0b",
-    description:
-      "Above-average historical order value, but inactive for 45–90 days. Risk of drifting away to competitor marketplaces.",
-    strategy:
-      "Send a 'We Miss You' campaign via WhatsApp with personalized recommendations and a 15% festive comeback coupon.",
-    rRange: [2, 3],
-    fRange: [2, 3],
-    mRange: [2, 3],
-  },
-  {
-    segment: "About To Sleep",
-    color: "#fb923c",
-    description:
-      "Below-average recency and frequency. At immediate risk of churn to Amazon/Flipkart/Meesho.",
-    strategy:
-      "Reactivate with a limited-time festive flash offer, popular high-margin trial pack, or UPI instant cashback incentive.",
-    rRange: [2, 3],
-    fRange: [1, 2],
-    mRange: [1, 2],
-  },
-  {
-    segment: "At Risk",
-    color: "#ef4444",
-    description:
-      "Previously frequent high-spenders who haven't ordered in 3–6 months. Critical high-value revenue retention priority.",
-    strategy:
-      "High-touch retention push: direct WhatsApp & SMS outreach with an exclusive ₹500 off voucher on orders above ₹1,999.",
-    rRange: [1, 2],
-    fRange: [3, 5],
-    mRange: [3, 5],
   },
   {
     segment: "Cannot Lose Them",
@@ -120,13 +55,57 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     mRange: [4, 5],
   },
   {
-    segment: "Hibernating",
-    color: "#6b7280",
+    segment: "At Risk",
+    color: "#ef4444",
     description:
-      "Long recency, low order count and basket value. Low return on ad spend for sustained acquisition.",
+      "Previously frequent high-spenders who haven't ordered in 3–6 months. Critical high-value revenue retention priority.",
     strategy:
-      "Low-cost mass WhatsApp / SMS broadcast during major annual festivals (Diwali / New Year); avoid expensive paid retargeting.",
+      "High-touch retention push: direct WhatsApp & SMS outreach with an exclusive ₹500 off voucher on orders above ₹1,999.",
     rRange: [1, 2],
+    fRange: [4, 5],
+    mRange: [1, 5],
+  },
+  {
+    segment: "Potential Loyalists",
+    color: "#84cc16",
+    description:
+      "Recent buyers with 2–3 purchases showing strong frequency momentum. High conversion potential to long-term brand advocates.",
+    strategy:
+      "Onboard into loyalty program, send personalized WhatsApp re-engagement codes (e.g. FESTIVE15), offer bundling discounts on complementary Indian SKUs.",
+    rRange: [4, 5],
+    fRange: [2, 3],
+    mRange: [1, 5],
+  },
+  {
+    segment: "New Customers",
+    color: "#22d3ee",
+    description:
+      "First-time shoppers who made their initial purchase recently. Fresh potential requiring swift onboarding and trust building.",
+    strategy:
+      "Automated WhatsApp welcome series, post-delivery satisfaction survey, flat ₹200 off on second purchase within 14 days to establish habit.",
+    rRange: [4, 5],
+    fRange: [1, 1],
+    mRange: [1, 5],
+  },
+  {
+    segment: "Need Attention",
+    color: "#f59e0b",
+    description:
+      "Above-average historical order value, but inactive for 45–90 days. Risk of drifting away to competitor marketplaces.",
+    strategy:
+      "Send a 'We Miss You' campaign via WhatsApp with personalized recommendations and a 15% festive comeback coupon.",
+    rRange: [1, 3],
+    fRange: [3, 3],
+    mRange: [1, 5],
+  },
+  {
+    segment: "About To Sleep",
+    color: "#fb923c",
+    description:
+      "Below-average recency and frequency. At immediate risk of churn to Amazon/Flipkart/Meesho.",
+    strategy:
+      "Reactivate with a limited-time festive flash offer, popular high-margin trial pack, or UPI instant cashback incentive.",
+    rRange: [2, 3],
     fRange: [1, 2],
     mRange: [1, 2],
   },
@@ -140,6 +119,28 @@ export const SEGMENT_PATTERNS: RfmPattern[] = [
     rRange: [1, 1],
     fRange: [1, 1],
     mRange: [1, 1],
+  },
+  {
+    segment: "Hibernating",
+    color: "#6b7280",
+    description:
+      "Long recency, low order count and basket value. Low return on ad spend for sustained acquisition.",
+    strategy:
+      "Low-cost mass WhatsApp / SMS broadcast during major annual festivals (Diwali / New Year); avoid expensive paid retargeting.",
+    rRange: [1, 2],
+    fRange: [1, 2],
+    mRange: [1, 5],
+  },
+  {
+    segment: "Promising",
+    color: "#a855f7",
+    description:
+      "Recent shoppers with moderate order values. Show early interest but have not yet developed a consistent buying pattern.",
+    strategy:
+      "Showcase bestselling regional items, announce upcoming festive sale events (Holi / Rakhi), incentivize second purchase with free shipping over ₹499.",
+    rRange: [3, 3],
+    fRange: [1, 2],
+    mRange: [3, 5],
   },
   {
     segment: "Average Customers",
@@ -160,6 +161,8 @@ export type RfmScore = {
   m: number;
 };
 
+export type ChurnStatus = "Active" | "At Risk" | "Churned";
+
 export type CustomerRfm = {
   customerId: string;
   customerName: string;
@@ -174,6 +177,10 @@ export type CustomerRfm = {
   monetaryScore: number;
   rfmScore: string;
   segment: string;
+  churnStatus: ChurnStatus;
+  churnScore: number;
+  pc1?: number;
+  pc2?: number;
 };
 
 /**
@@ -246,6 +253,7 @@ export async function runRfmAnalysis(referenceDate?: Date): Promise<{
   totalRevenue: number;
   segments: CustomerRfm[];
   customers: CustomerRfm[];
+  pcaVariance: [number, number];
 }> {
   const refDate = referenceDate ?? new Date();
   // Use a stable date string for comparison purposes
@@ -263,6 +271,7 @@ export async function runRfmAnalysis(referenceDate?: Date): Promise<{
       totalRevenue: 0,
       segments: [],
       customers: [],
+      pcaVariance: [0, 0],
     };
   }
 
@@ -345,6 +354,29 @@ export async function runRfmAnalysis(referenceDate?: Date): Promise<{
     const fScore = scoreQuantile(c.frequency, frequencyThresholds, true);
     const mScore = scoreQuantile(c.monetary, monetaryThresholds, true);
     const segment = classifySegment(rScore, fScore, mScore);
+
+    // Weighted Churn Score (0% to 100%):
+    // 50% Recency weight + 30% Frequency weight + 20% Monetary weight
+    const churnScore = Math.round(
+      (1 - (rScore - 1) / 4) * 50 +
+      (1 - (fScore - 1) / 4) * 30 +
+      (1 - (mScore - 1) / 4) * 20
+    );
+
+    // Churn Risk Engine:
+    // Unified classification aligned with multi-factor churn score and dormancy:
+    // churnScore >= 85 OR recency > 180 days => "Churned"
+    // churnScore >= 40 OR recency > 45 days => "At Risk"
+    // Otherwise => "Active"
+    let churnStatus: ChurnStatus = "Active";
+    if (churnScore >= 85 || c.recencyDays > 180) {
+      churnStatus = "Churned";
+    } else if (churnScore >= 40 || c.recencyDays > 45) {
+      churnStatus = "At Risk";
+    } else {
+      churnStatus = "Active";
+    }
+
     return {
       customerId: c.customerId,
       customerName: c.customer.name,
@@ -359,10 +391,26 @@ export async function runRfmAnalysis(referenceDate?: Date): Promise<{
       monetaryScore: mScore,
       rfmScore: `${rScore}${fScore}${mScore}`,
       segment,
+      churnStatus,
+      churnScore,
     };
   });
 
-  // Step 5: persist
+  // Step 5: Compute 2D PCA projection for cluster visualization
+  const pca = computePca2D(
+    result.map((r) => ({
+      recencyDays: r.recencyDays,
+      frequency: r.frequency,
+      monetary: r.monetary,
+    }))
+  );
+
+  result.forEach((r, idx) => {
+    r.pc1 = pca.points[idx]?.pc1 ?? 0;
+    r.pc2 = pca.points[idx]?.pc2 ?? 0;
+  });
+
+  // Step 6: persist
   await db.$transaction(
     result.map((r) =>
       db.rfmSnapshot.upsert({
@@ -398,6 +446,7 @@ export async function runRfmAnalysis(referenceDate?: Date): Promise<{
     totalRevenue,
     segments: result,
     customers: result,
+    pcaVariance: pca.varianceExplained,
   };
 }
 

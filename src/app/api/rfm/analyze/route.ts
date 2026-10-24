@@ -17,10 +17,19 @@ export async function GET() {
       f: [0, 0, 0, 0, 0],
       m: [0, 0, 0, 0, 0],
     };
+    const churnBreakdown = {
+      active: 0,
+      atRisk: 0,
+      churned: 0,
+    };
     for (const c of result.customers) {
       scoreDistribution.r[c.recencyScore - 1] += 1;
       scoreDistribution.f[c.frequencyScore - 1] += 1;
       scoreDistribution.m[c.monetaryScore - 1] += 1;
+
+      if (c.churnStatus === "Active") churnBreakdown.active += 1;
+      else if (c.churnStatus === "At Risk") churnBreakdown.atRisk += 1;
+      else churnBreakdown.churned += 1;
     }
 
     return NextResponse.json({
@@ -32,6 +41,8 @@ export async function GET() {
       segmentSummary,
       scoreDistribution,
       customers: result.customers,
+      pcaVariance: result.pcaVariance,
+      churnBreakdown,
     });
   } catch (err) {
     console.error("[rfm/analyze] error:", err);

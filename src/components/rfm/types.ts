@@ -1,5 +1,7 @@
 // Shared client-side types for RFM dashboard components
 
+export type ChurnStatus = "Active" | "At Risk" | "Churned";
+
 export type CustomerRfm = {
   customerId: string;
   customerName: string;
@@ -14,6 +16,10 @@ export type CustomerRfm = {
   monetaryScore: number;
   rfmScore: string;
   segment: string;
+  churnStatus: ChurnStatus;
+  churnScore: number;
+  pc1?: number;
+  pc2?: number;
 };
 
 export type SegmentSummary = {
@@ -43,4 +49,10 @@ export type RfmAnalysisResponse = {
   segmentSummary: SegmentSummary[];
   scoreDistribution: ScoreDistribution;
   customers: CustomerRfm[];
+  pcaVariance?: [number, number];
+  churnBreakdown?: {
+    active: number;
+    atRisk: number;
+    churned: number;
+  };
 };

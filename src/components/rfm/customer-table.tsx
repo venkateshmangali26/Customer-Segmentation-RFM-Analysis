@@ -33,7 +33,12 @@ type Props = {
   segments: SegmentSummary[];
 };
 
-type SortKey = "recencyDays" | "frequency" | "monetary" | "customerName";
+type SortKey =
+  | "recencyDays"
+  | "frequency"
+  | "monetary"
+  | "customerName"
+  | "churnScore";
 type SortDir = "asc" | "desc";
 
 function SortIndicator({
@@ -58,6 +63,7 @@ function SortIndicator({
 export function CustomerTable({ customers, segments }: Props) {
   const [search, setSearch] = useState("");
   const [segmentFilter, setSegmentFilter] = useState("all");
+  const [churnFilter, setChurnFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("monetary");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(1);
@@ -79,19 +85,21 @@ export function CustomerTable({ customers, segments }: Props) {
         c.channel.toLowerCase().includes(q);
       const matchesSegment =
         segmentFilter === "all" || c.segment === segmentFilter;
-      return matchesSearch && matchesSegment;
+      const matchesChurn =
+        churnFilter === "all" || c.churnStatus === churnFilter;
+      return matchesSearch && matchesSegment && matchesChurn;
     });
     out.sort((a, b) => {
       let cmp = 0;
       if (sortKey === "customerName") {
         cmp = a.customerName.localeCompare(b.customerName);
       } else {
-        cmp = (a[sortKey] as number) - (b[sortKey] as number);
+        cmp = ((a[sortKey] ?? 0) as number) - ((b[sortKey] ?? 0) as number);
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
     return out;
-  }, [customers, search, segmentFilter, sortKey, sortDir]);
+  }, [customers, search, segmentFilter, churnFilter, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -138,7 +146,7 @@ export function CustomerTable({ customers, segments }: Props) {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filter by segment" />
             </SelectTrigger>
             <SelectContent>
@@ -148,6 +156,23 @@ export function CustomerTable({ customers, segments }: Props) {
                   {s.segment} ({s.count})
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={churnFilter}
+            onValueChange={(v) => {
+              setChurnFilter(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[170px]">
+              <SelectValue placeholder="Churn Risk" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="Active">🟢 Active (≤45d)</SelectItem>
+              <SelectItem value="At Risk">🟡 At Risk (46-180d)</SelectItem>
+              <SelectItem value="Churned">🔴 Churned (&gt;180d)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -167,6 +192,14 @@ export function CustomerTable({ customers, segments }: Props) {
                 </TableHead>
                 <TableHead>State / Region</TableHead>
                 <TableHead>Segment</TableHead>
+                <TableHead>
+                  <button
+                    className="font-medium hover:text-foreground inline-flex items-center"
+                    onClick={() => toggleSort("churnScore")}
+                  >
+                    Churn Risk<SortIndicator col="churnScore" sortKey={sortKey} sortDir={sortDir} />
+                  </button>
+                </TableHead>
                 <TableHead>Channel</TableHead>
                 <TableHead>RFM Score</TableHead>
                 <TableHead className="text-right">
@@ -198,6 +231,9 @@ export function CustomerTable({ customers, segments }: Props) {
             <TableBody>
               {paged.map((c) => {
                 const color = segmentColorMap.get(c.segment) ?? "#9ca3af";
+                const isChurnActive = c.churnStatus === "Active";
+                const isChurnAtRisk = c.churnStatus === "At Risk";
+
                 return (
                   <TableRow key={c.customerId}>
                     <TableCell>
@@ -225,6 +261,27 @@ export function CustomerTable({ customers, segments }: Props) {
                         {c.segment}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[11px] font-medium rounded-full px-2 py-0.5 w-fit border ${
+                            isChurnActive
+                              ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/25"
+                              : isChurnAtRisk
+                              ? "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25"
+                              : "text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/25"
+                          }`}
+                        >
+                          <span className="text-[9px]">
+                            {isChurnActive ? "🟢" : isChurnAtRisk ? "🟡" : "🔴"}
+                          </span>
+                          {c.churnStatus ?? "Active"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {c.churnScore ?? 0}% risk
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.channel}</TableCell>
                     <TableCell>
                       <span className="font-mono text-sm font-semibold">{c.rfmScore}</span>
@@ -242,7 +299,7 @@ export function CustomerTable({ customers, segments }: Props) {
               {paged.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="text-center text-muted-foreground py-8"
                   >
                     No customers match your filters.

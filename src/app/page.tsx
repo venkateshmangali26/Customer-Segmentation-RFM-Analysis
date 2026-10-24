@@ -27,6 +27,7 @@ import {
   SegmentBadges,
 } from "@/components/rfm/segment-strategy-table";
 import { CustomerTable } from "@/components/rfm/customer-table";
+import { PcaClusterScatter } from "@/components/rfm/pca-scatter";
 import { AddTransactionDialog } from "@/components/rfm/add-transaction-dialog";
 import { EmptyState } from "@/components/rfm/empty-state";
 
@@ -174,10 +175,14 @@ export default function Home() {
 
             {/* Tabs */}
             <Tabs defaultValue="dashboard" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 max-w-md">
+              <TabsList className="grid w-full grid-cols-4 max-w-lg">
                 <TabsTrigger value="dashboard" className="gap-1.5">
                   <PieChart className="h-3.5 w-3.5" />
                   Dashboard
+                </TabsTrigger>
+                <TabsTrigger value="pca" className="gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  PCA Clusters
                 </TabsTrigger>
                 <TabsTrigger value="segments" className="gap-1.5">
                   <Users className="h-3.5 w-3.5" />
@@ -194,11 +199,24 @@ export default function Home() {
                   <SegmentDonut segments={data.segmentSummary} />
                   <ScoreDistributionChart distribution={data.scoreDistribution} />
                 </div>
+                <PcaClusterScatter
+                  customers={data.customers}
+                  segments={data.segmentSummary}
+                  varianceExplained={data.pcaVariance}
+                />
                 <RfmBubbleChart
                   customers={data.customers}
                   segments={data.segmentSummary}
                 />
                 <SegmentBadges segments={data.segmentSummary} />
+              </TabsContent>
+
+              <TabsContent value="pca" className="mt-4 space-y-6">
+                <PcaClusterScatter
+                  customers={data.customers}
+                  segments={data.segmentSummary}
+                  varianceExplained={data.pcaVariance}
+                />
               </TabsContent>
 
               <TabsContent value="segments" className="mt-4">
