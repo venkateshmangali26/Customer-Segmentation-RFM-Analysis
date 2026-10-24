@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { seedSampleData } from "@/lib/sample-data";
 import { runRfmAnalysis } from "@/lib/rfm";
+import { ensureSchema } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    await ensureSchema();
     let count = 220;
     try {
       const body = await request.json();

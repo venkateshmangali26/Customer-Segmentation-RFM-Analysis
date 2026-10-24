@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, ensureSchema } from "@/lib/db";
 import { runRfmAnalysis } from "@/lib/rfm";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,7 @@ const TransactionSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    await ensureSchema();
     const body = await request.json();
     const parsed = TransactionSchema.safeParse(body);
     if (!parsed.success) {

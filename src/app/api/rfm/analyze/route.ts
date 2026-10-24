@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { runRfmAnalysis, summarizeBySegment } from "@/lib/rfm";
+import { ensureSchema } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await ensureSchema();
     const result = await runRfmAnalysis();
     const segmentSummary = summarizeBySegment(result.customers);
     const totalRevenue = result.customers.reduce((s, c) => s + c.monetary, 0);
